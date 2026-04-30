@@ -4,12 +4,18 @@ from app.services.llm_service import generate_reply
 conversation = []
 
 while True:
+    print("\nListening...")
     file = record_audio()
 
-    text = transcribe_audio(file).strip()
+    if not file:
+        print("No speech detected. Please try again.")
+        continue
+
+    text = transcribe_audio(file)
 
     # ignore empty input
     if not text:
+        print("Could not understand. Please try again.")
         continue
 
     print("You:", text)
