@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedVoice AI - Simple Interface</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .mic-button {
+            @apply w-24 h-24 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all duration-200 shadow-lg hover:shadow-xl;
+        }
+        .mic-button.listening {
+            @apply bg-red-600 hover:bg-red-700 animate-pulse;
+        }
+        .chat-message {
+            @apply max-w-2xl mx-auto p-4 rounded-lg mb-4;
+        }
+        .chat-message.user {
+            @apply bg-blue-600 text-white ml-auto;
+        }
+        .chat-message.assistant {
+            @apply bg-gray-700 text-gray-100 mr-auto;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen flex flex-col">
+    <!-- Header -->
+    <header class="bg-gray-800 border-b border-gray-700 px-6 py-4">
+        <div class="max-w-4xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-semibold text-white">MedVoice AI</h1>
+                    <p class="text-sm text-gray-400">Hospital Voice Assistant</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2">
+                    <label class="text-sm text-gray-400">Voice:</label>
+                    <select id="voiceType" class="bg-gray-700 text-gray-100 px-3 py-1 rounded border border-gray-600 focus:outline-none focus:border-blue-500">
+                        <option value="female">Female</option>
+                        <option value="male">Male</option>
+                    </select>
+                </div>
+                
+                <div id="status" class="flex items-center gap-2 px-3 py-1 rounded-full text-sm bg-gray-700 text-gray-300">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                    </svg>
+                    <span>Ready</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col max-w-4xl mx-auto w-full px-6 py-8">
+        <!-- Health Check -->
+        <div id="healthStatus" class="mb-4 p-4 rounded-lg bg-gray-800 text-center">
+            <p class="text-sm text-gray-400">Checking backend connection...</p>
+        </div>
+
+        <!-- Chat Messages -->
+        <div id="chatMessages" class="flex-1 overflow-y-auto mb-8 space-y-4">
+            <div class="text-center py-12">
+                <div class="w-20 h-20 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-semibold text-white mb-2">Welcome to MedVoice AI</h2>
+                <p class="text-gray-400 mb-6">Click the microphone button to start speaking</p>
+                <div class="text-sm text-gray-500 space-y-1">
+                    <p>• Say "book appointment" to schedule a visit</p>
+                    <p>• Say "check availability" to see doctor schedules</p>
+                    <p>• Provide your OPID for personalized assistance</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Microphone Button -->
+        <div class="flex justify-center">
+            <button id="micButton" class="mic-button" onclick="handleMicClick()">
+                <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="mt-8 flex justify-center gap-4">
+            <button onclick="testAppointment()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm text-gray-300 transition-colors">
+                📅 Test Appointment
+            </button>
+            <button onclick="testAvailability()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm text-gray-300 transition-colors">
+                🕐 Test Availability
+            </button>
+            <button onclick="testPatient()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm text-gray-300 transition-colors">
+                👤 Test Patient Lookup
+            </button>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 border-t border-gray-700 px-6 py-4">
+        <div class="max-w-4xl mx-auto text-center text-sm text-gray-400">
+            <p>MedVoice AI - Simple Interface (Node.js not required)</p>
+        </div>
+    </footer>
+
+    <script>
+        let sessionId = 'session_' + Date.now();
+        let isProcessing = false;
+
+        // Check backend health on load
+        async function checkHealth() {
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/health');
+                const data = await response.json();
+                
+                const healthDiv = document.getElementById('healthStatus');
+                if (data.status === 'healthy') {
+                    healthDiv.innerHTML = `
+                        <p class="text-sm text-green-400">✅ Backend connected - All systems operational</p>
+                    `;
+                    healthDiv.className = 'mb-4 p-4 rounded-lg bg-green-900 text-center';
+                } else {
+                    healthDiv.innerHTML = `
+                        <p class="text-sm text-yellow-400">⚠️ Backend issues detected</p>
+                    `;
+                    healthDiv.className = 'mb-4 p-4 rounded-lg bg-yellow-900 text-center';
+                }
+            } catch (error) {
+                const healthDiv = document.getElementById('healthStatus');
+                healthDiv.innerHTML = `
+                    <p class="text-sm text-red-400">❌ Backend not connected - Start with: ./start_backend.sh</p>
+                `;
+                healthDiv.className = 'mb-4 p-4 rounded-lg bg-red-900 text-center';
+            }
+        }
+
+        function updateStatus(status, text) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `flex items-center gap-2 px-3 py-1 rounded-full text-sm`;
+            
+            if (status === 'listening') {
+                statusDiv.className += ' bg-red-900 text-red-200';
+            } else if (status === 'processing') {
+                statusDiv.className += ' bg-yellow-900 text-yellow-200';
+            } else if (status === 'speaking') {
+                statusDiv.className += ' bg-green-900 text-green-200';
+            } else {
+                statusDiv.className += ' bg-gray-700 text-gray-300';
+            }
+            
+            statusDiv.querySelector('span').textContent = text;
+        }
+
+        function addMessage(type, content, intent = null) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message ${type}`;
+            
+            const icon = type === 'user' ? 
+                '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>' :
+                '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>';
+            
+            messageDiv.innerHTML = `
+                <div class="flex items-start gap-3">
+                    <div class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center flex-shrink-0">
+                        ${icon}
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm font-medium mb-1 opacity-70">
+                            ${type === 'user' ? 'You' : 'Assistant'}
+                            ${intent ? `<span class="ml-2 text-xs opacity-50">(${intent})</span>` : ''}
+                        </p>
+                        <p class="text-sm leading-relaxed">${content}</p>
+                    </div>
+                </div>
+            `;
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        async function handleMicClick() {
+            if (isProcessing) return;
+            
+            isProcessing = true;
+            const micButton = document.getElementById('micButton');
+            const voiceType = document.getElementById('voiceType').value;
+            
+            micButton.classList.add('listening');
+            updateStatus('listening', 'Listening...');
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/voice', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        voice_type: voiceType
+                    })
+                });
+                
+                micButton.classList.remove('listening');
+                updateStatus('processing', 'Processing...');
+                
+                const result = await response.json();
+                
+                if (result.user_input) {
+                    addMessage('user', result.user_input);
+                }
+                
+                if (result.response) {
+                    addMessage('assistant', result.response, result.intent);
+                }
+                
+                updateStatus('ready', 'Ready');
+                
+            } catch (error) {
+                console.error('Error:', error);
+                addMessage('assistant', 'Sorry, I encountered an error. Please make sure the backend is running.');
+                micButton.classList.remove('listening');
+                updateStatus('ready', 'Ready');
+            } finally {
+                isProcessing = false;
+            }
+        }
+
+        // Test functions
+        async function testAppointment() {
+            addMessage('user', 'I want to book an appointment with dermatologist');
+            addMessage('assistant', 'To book an appointment, I need your OPID. Could you please provide your 6-digit OPID?', 'book_appointment');
+        }
+
+        async function testAvailability() {
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/availability');
+                const data = await response.json();
+                addMessage('user', 'When are doctors available?');
+                addMessage('assistant', `Available doctors: ${data.count} found. Check the console for details.`, 'check_availability');
+                console.log('Availability data:', data);
+            } catch (error) {
+                addMessage('assistant', 'Could not fetch availability. Make sure backend is running.');
+            }
+        }
+
+        async function testPatient() {
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/patient/411326');
+                const data = await response.json();
+                addMessage('user', 'My OPID is 411326');
+                addMessage('assistant', `Found: ${data.patient.name}, Medical history: ${data.patient.history.join(', ')}`, 'patient_lookup');
+            } catch (error) {
+                addMessage('assistant', 'Could not find patient. Make sure backend is running.');
+            }
+        }
+
+        // Initialize
+        checkHealth();
+    </script>
+</body>
+</html>
