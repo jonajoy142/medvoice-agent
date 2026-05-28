@@ -6,7 +6,7 @@ MedVoice is a FastAPI + React hospital voice receptionist demo with deterministi
 
 ```text
 medVoice-ai/
-  backend/          FastAPI app, tests, Alembic, Poetry, backend Dockerfile
+  backend/          FastAPI app, tests, Alembic, Poetry, backend deployment config
   frontend/         React/Vite app
   docker-compose.yml
   README.md
@@ -145,20 +145,21 @@ Supabase migration path:
 Build and run the FastAPI container from the repo root:
 
 ```bash
-docker build -t medvoice-backend ./backend
+docker build -t medvoice-backend -f backend/docker/Dockerfile backend
 docker run --env-file backend/.env.example -p 8000:8000 medvoice-backend
 ```
 
-For Render/Railway/Fly.io:
+For Render/Fly.io:
 - Root/build context: `backend`
-- Dockerfile: `backend/Dockerfile`
+- Dockerfile: `backend/docker/Dockerfile`
 - Start command if not using Docker: `poetry run uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 - Set `LLM_PROVIDER=deterministic` unless a hosted provider API key is configured.
 - Set `DATABASE_URL` for managed Postgres or Supabase.
 
 For Railway:
 - Service Root Directory: `backend`
-- Builder: Nixpacks, using `backend/nixpacks.toml`
+- Builder: Railpack, using `backend/railway.json`
+- Build command: `poetry install --no-interaction --no-root`
 - Railway config: `backend/railway.json`
 - Start command: `poetry run uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 - Healthcheck path: `/api/v1/health`
