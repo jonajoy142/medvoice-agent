@@ -145,21 +145,20 @@ Supabase migration path:
 Build and run the FastAPI container from the repo root:
 
 ```bash
-docker build -t medvoice-backend -f backend/docker/Dockerfile backend
+docker build -t medvoice-backend ./backend
 docker run --env-file backend/.env.example -p 8000:8000 medvoice-backend
 ```
 
 For Render/Fly.io:
 - Root/build context: `backend`
-- Dockerfile: `backend/docker/Dockerfile`
+- Dockerfile: `backend/Dockerfile`
 - Start command if not using Docker: `poetry run uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 - Set `LLM_PROVIDER=deterministic` unless a hosted provider API key is configured.
 - Set `DATABASE_URL` for managed Postgres or Supabase.
 
 For Railway:
 - Service Root Directory: `backend`
-- Builder: Railpack, using `backend/railway.json`
-- Build command: `poetry install --no-interaction --no-root`
+- Builder: Dockerfile, using `backend/Dockerfile`
 - Railway config: `backend/railway.json`
 - Start command: `poetry run uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 - Healthcheck path: `/api/v1/health`
