@@ -156,6 +156,27 @@ For Render/Railway/Fly.io:
 - Set `LLM_PROVIDER=deterministic` unless a hosted provider API key is configured.
 - Set `DATABASE_URL` for managed Postgres or Supabase.
 
+For Railway:
+- Service Root Directory: `backend`
+- Builder: Nixpacks, using `backend/nixpacks.toml`
+- Railway config: `backend/railway.json`
+- Start command: `poetry run uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- Healthcheck path: `/api/v1/health`
+- Required environment variables:
+  - `PORT` is provided by Railway
+  - `ENVIRONMENT=production`
+  - `LLM_PROVIDER=deterministic`
+  - `LLM_FALLBACK_PROVIDER=deterministic`
+  - `LLM_ENABLE_FALLBACK=true`
+  - `CORS_ORIGINS=https://your-vercel-app.vercel.app`
+- Optional database variables:
+  - `USE_DATABASE=true`
+  - `DATABASE_URL=postgresql+psycopg://...`
+- Optional hosted LLM variables:
+  - `OPENAI_API_KEY`, `OPENAI_MODEL`
+  - `GROQ_API_KEY`, `GROQ_MODEL`
+  - `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`
+
 For Vercel:
 - Preferred project root: `frontend`
 - Build command: `npm run build`
