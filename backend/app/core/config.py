@@ -32,7 +32,11 @@ class Settings:
     openrouter_model: str = "meta-llama/llama-3.1-8b-instruct"
     log_dir: str = "logs"
     log_redact_phi: bool = True
-    cors_origins: tuple[str, ...] = ("http://localhost:3000", "http://127.0.0.1:3000")
+    cors_origins: tuple[str, ...] = (
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://medvoice-agent.vercel.app",
+    )
     require_api_key: bool = False
     api_key: str = ""
     use_database: bool = False
