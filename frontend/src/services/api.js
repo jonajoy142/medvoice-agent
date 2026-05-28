@@ -14,7 +14,17 @@ export async function getHealth() {
 }
 
 export async function processVoice(payload) {
-  const response = await api.post('/api/v1/voice', payload);
+  const formData = new FormData();
+  formData.append('audio', payload.audio, payload.audioName || 'voice-turn.webm');
+  formData.append('session_id', payload.session_id);
+  formData.append('voice', payload.voice);
+  if (payload.voice_provider) formData.append('voice_provider', payload.voice_provider);
+  if (payload.persona_id) formData.append('persona_id', payload.persona_id);
+  if (payload.language) formData.append('language', payload.language);
+
+  const response = await api.post('/api/v1/voice', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
   return response.data;
 }
 

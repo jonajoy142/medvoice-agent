@@ -116,14 +116,17 @@ function App() {
     setError('');
     setSpeakCancelled(false);
     setWorkflowStage('listening');
-    setPartialTranscript('Listening to patient voice...');
-    await wait(450);
-    setWorkflowStage('transcribing');
-    setPartialTranscript('Transcribing audio...');
 
     try {
+      setPartialTranscript('Listening to patient voice...');
+      const recording = await recordMicrophoneAudio(4500);
+      setWorkflowStage('transcribing');
+      setPartialTranscript('Transcribing audio...');
+
       const result = await processVoice({
         session_id: sessionId,
+        audio: recording.blob,
+        audioName: recording.fileName,
         voice: voiceType,
         voice_provider: voiceProvider,
         persona_id: personaId,
@@ -131,7 +134,12 @@ function App() {
       });
       handleResponse(result);
     } catch (caught) {
-      setError('Voice processing failed. Check microphone permissions and backend availability.');
+      const permissionDenied = caught?.name === 'NotAllowedError' || caught?.name === 'SecurityError';
+      setError(
+        permissionDenied
+          ? 'Microphone permission was denied. Allow microphone access in the browser and retry.'
+          : 'Voice processing failed. Check microphone permissions and backend availability.'
+      );
       pushAssistant('I could not process the voice turn. Please try again.');
     } finally {
       await wait(600);
@@ -327,6 +335,62 @@ function App() {
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function recordMicrophoneAudio(durationMs = 4500) {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return Promise.reject(new Error('This browser does not support microphone capture.'));
+  }
+  if (!window.MediaRecorder) {
+    return Promise.reject(new Error('This browser does not support MediaRecorder.'));
+  }
+
+  return navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+    const mimeType = getSupportedAudioMimeType();
+    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    const chunks = [];
+
+    return new Promise((resolve, reject) => {
+      recorder.ondataavailable = (event) => {
+        if (event.data?.size) chunks.push(event.data);
+      };
+      recorder.onerror = () => {
+        stopTracks(stream);
+        reject(recorder.error || new Error('Microphone recording failed.'));
+      };
+      recorder.onstop = () => {
+        stopTracks(stream);
+        const type = recorder.mimeType || mimeType || 'audio/webm';
+        const blob = new Blob(chunks, { type });
+        if (!blob.size) {
+          reject(new Error('No microphone audio was recorded.'));
+          return;
+        }
+        resolve({ blob, fileName: `voice-turn.${audioExtension(type)}` });
+      };
+
+      recorder.start();
+      window.setTimeout(() => {
+        if (recorder.state !== 'inactive') recorder.stop();
+      }, durationMs);
+    });
+  });
+}
+
+function getSupportedAudioMimeType() {
+  const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+  return candidates.find((type) => MediaRecorder.isTypeSupported(type)) || '';
+}
+
+function audioExtension(mimeType) {
+  if (mimeType.includes('mp4')) return 'mp4';
+  if (mimeType.includes('ogg')) return 'ogg';
+  if (mimeType.includes('wav')) return 'wav';
+  return 'webm';
+}
+
+function stopTracks(stream) {
+  stream.getTracks().forEach((track) => track.stop());
 }
 
 export default App;
