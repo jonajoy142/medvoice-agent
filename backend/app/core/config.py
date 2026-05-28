@@ -55,6 +55,9 @@ class Settings:
     default_language: str = "en-IN"
     default_voice_persona: str = "female_warm_indian"
     enable_streaming_audio: bool = True
+    enable_whisper: bool = True
+    enable_local_stt: bool = True
+    enable_local_tts: bool = True
 
 
 def get_settings() -> Settings:
@@ -109,6 +112,9 @@ def get_settings() -> Settings:
         default_language=os.getenv("DEFAULT_LANGUAGE", "en-IN"),
         default_voice_persona=os.getenv("DEFAULT_VOICE_PERSONA", "female_warm_indian"),
         enable_streaming_audio=_as_bool(os.getenv("ENABLE_STREAMING_AUDIO"), True),
+        enable_whisper=_as_bool(os.getenv("ENABLE_WHISPER"), True),
+        enable_local_stt=_as_bool(os.getenv("ENABLE_LOCAL_STT"), True),
+        enable_local_tts=_as_bool(os.getenv("ENABLE_LOCAL_TTS"), True),
     )
 
 

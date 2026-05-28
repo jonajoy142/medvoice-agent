@@ -162,6 +162,11 @@ For Railway:
 - Railway config: `backend/railway.json`
 - Start command: `poetry run uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 - Healthcheck path: `/api/v1/health`
+- The Railway Docker image defaults to lightweight text/demo mode:
+  - `ENABLE_WHISPER=false`
+  - `ENABLE_LOCAL_STT=false`
+  - `ENABLE_LOCAL_TTS=false`
+  - This avoids GPU PyTorch, ffmpeg, and local audio dependencies on low-resource hosts.
 - Required environment variables:
   - `PORT` is provided by Railway
   - `ENVIRONMENT=production`
@@ -176,6 +181,12 @@ For Railway:
   - `OPENAI_API_KEY`, `OPENAI_MODEL`
   - `GROQ_API_KEY`, `GROQ_MODEL`
   - `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`
+- Optional CPU Whisper image mode:
+  - Build with `INSTALL_WHISPER=true`
+  - Set `ENABLE_WHISPER=true`
+  - Set `ENABLE_LOCAL_STT=true`
+  - This installs CPU-only PyTorch from `https://download.pytorch.org/whl/cpu`.
+  - Railway does not provide GPU instances, so do not use CUDA/GPU PyTorch.
 
 For Vercel:
 - Preferred project root: `frontend`
