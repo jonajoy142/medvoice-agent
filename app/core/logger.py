@@ -7,11 +7,15 @@ import os
 from datetime import datetime
 from typing import Dict, Any, Optional
 import uuid
+import re
+
+from app.core.config import settings
 
 class ConversationLogger:
-    def __init__(self, log_dir: str = "logs"):
+    def __init__(self, log_dir: str = "logs", redact_phi: bool = True):
         self.log_dir = log_dir
         self.log_file = os.path.join(log_dir, "conversations.log")
+        self.redact_phi = redact_phi
         
         # Create logs directory if it doesn't exist
         if not os.path.exists(log_dir):
@@ -30,12 +34,12 @@ class ConversationLogger:
         log_entry = {
             "timestamp": datetime.utcnow().isoformat(),
             "session_id": session_id,
-            "user_text": user_text,
-            "ai_response": ai_response,
+            "user_text": self._redact_text(user_text),
+            "ai_response": self._redact_text(ai_response),
             "intent": intent,
-            "entities": entities,
+            "entities": self._redact_entities(entities),
             "action": action,
-            "metadata": metadata or {}
+            "metadata": self._redact_dict(metadata or {}),
         }
         
         # Append to log file
@@ -87,5 +91,28 @@ class ConversationLogger:
         """Generate a new session ID"""
         return str(uuid.uuid4())
 
+    def _redact_text(self, text: str) -> str:
+        if not self.redact_phi or not text:
+            return text
+        redacted = re.sub(r"\b\d{6}\b", "[REDACTED_OPID]", text)
+        redacted = re.sub(r"(\+?\d[\d\-\s]{7,}\d)", "[REDACTED_PHONE]", redacted)
+        return redacted
+
+    def _redact_entities(self, entities: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        if entities is None:
+            return None
+        return self._redact_dict(entities)
+
+    def _redact_dict(self, value: Any) -> Any:
+        if not self.redact_phi:
+            return value
+        if isinstance(value, dict):
+            return {key: self._redact_dict(val) for key, val in value.items()}
+        if isinstance(value, list):
+            return [self._redact_dict(item) for item in value]
+        if isinstance(value, str):
+            return self._redact_text(value)
+        return value
+
 # Global logger instance
-conversation_logger = ConversationLogger()
+conversation_logger = ConversationLogger(log_dir=settings.log_dir, redact_phi=settings.log_redact_phi)

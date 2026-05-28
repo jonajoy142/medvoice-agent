@@ -4,7 +4,7 @@ Improved Intent Service with session memory and doctor context handling
 
 import re
 from typing import Dict, Any
-from app.repo.mock_db import get_patient, get_doctors, add_appointment
+from app.repositories import appointment_repository, doctor_repository, patient_repository
 
 class IntentService:
     def __init__(self):
@@ -77,7 +77,7 @@ class IntentService:
     
     def extract_entities(self, text: str) -> Dict[str, Any]:
         """Extract entities from user text"""
-        entities = {}
+        entities = {"text": text}
         
         # Extract OPID (6-digit numbers) - handle number words
         number_words = {
@@ -169,7 +169,7 @@ class IntentService:
     def _handle_patient_lookup(self, entities: Dict[str, Any]) -> Dict[str, Any]:
         """Handle patient lookup intent"""
         if "opid" in entities:
-            patient = get_patient(entities["opid"])
+            patient = patient_repository().get_patient(entities["opid"])
             if patient:
                 return {
                     "action": "patient_found",
@@ -202,7 +202,7 @@ class IntentService:
                 "data": {"missing": ["opid"]}
             }
         
-        patient = get_patient(opid)
+        patient = patient_repository().get_patient(opid)
         if not patient:
             return {
                 "action": "patient_not_found",
@@ -233,7 +233,7 @@ class IntentService:
             "status": "pending"
         }
         
-        appointment = add_appointment(appointment_data)
+        appointment = appointment_repository().add_appointment(appointment_data)
         
         return {
             "action": "appointment_booked",
@@ -244,7 +244,7 @@ class IntentService:
     def _handle_check_availability(self, entities: Dict[str, Any], session: Dict[str, Any] = None) -> Dict[str, Any]:
         """Handle availability check intent"""
         specialization = entities.get("specialization", "dermatologist")
-        doctors = get_doctors(specialization)
+        doctors = doctor_repository().get_doctors(specialization)
         
         if not doctors:
             return {
@@ -256,15 +256,17 @@ class IntentService:
         # Store doctor list in session for "that doctor" references
         if session:
             doctor_names = [doc['name'] for doc in doctors]
-            from app.repo.mock_db import update_session
-            update_session(session.get("id", ""), {"last_doctor_list": doctor_names})
+            session["last_doctor_list"] = doctor_names
         
         # Create natural response
         first_doctor = doctors[0]
         available_slots = first_doctor['slots'][:2]  # Show first 2 slots
         available_days = first_doctor['available_days'][:2]  # Show first 2 days
         
-        response = f"Yes, Dr. {first_doctor['name']} is available at {', '.join(available_slots)} on {', '.join(available_days)}."
+        doctor_name = first_doctor["name"]
+        if not doctor_name.lower().startswith("dr."):
+            doctor_name = f"Dr. {doctor_name}"
+        response = f"Yes, {doctor_name} is available at {', '.join(available_slots)} on {', '.join(available_days)}."
         
         return {
             "action": "availability_info",
@@ -275,7 +277,7 @@ class IntentService:
     def _handle_doctor_info(self, entities: Dict[str, Any], session: Dict[str, Any] = None) -> Dict[str, Any]:
         """Handle doctor information request"""
         specialization = entities.get("specialization", "dermatologist")
-        doctors = get_doctors(specialization)
+        doctors = doctor_repository().get_doctors(specialization)
         
         if not doctors:
             return {
@@ -285,24 +287,28 @@ class IntentService:
             }
         
         # Check for "that doctor" reference
-        text = entities.get("text", "").lower()
+        text_lower = entities.get("text", "").lower()
         if "that doctor" in text_lower and session and session.get("last_doctor_list"):
             # Reference the last mentioned doctor
             last_doctors = session["last_doctor_list"]
             if last_doctors:
                 doctor_name = last_doctors[0]  # Use first mentioned doctor
+                safe_name = doctor_name if doctor_name.lower().startswith("dr.") else f"Dr. {doctor_name}"
                 return {
                     "action": "doctor_info",
-                    "response": f"Yes, I was referring to Dr. {doctor_name}.",
+                    "response": f"Yes, I was referring to {safe_name}.",
                     "data": {"doctors": doctors}
                 }
         
         # Natural response with first doctor
         first_doctor = doctors[0]
+        safe_first_name = first_doctor["name"]
+        if not safe_first_name.lower().startswith("dr."):
+            safe_first_name = f"Dr. {safe_first_name}"
         if len(doctors) == 1:
-            response = f"Yes, Dr. {first_doctor['name']} is our {specialization} specialist."
+            response = f"Yes, {safe_first_name} is our {specialization} specialist."
         else:
-            response = f"Yes, we have Dr. {first_doctor['name']} and {len(doctors)-1} other {specialization} specialists available."
+            response = f"Yes, we have {safe_first_name} and {len(doctors)-1} other {specialization} specialists available."
         
         return {
             "action": "doctor_list",

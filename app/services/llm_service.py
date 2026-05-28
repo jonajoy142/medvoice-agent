@@ -1,6 +1,7 @@
 import requests
 from typing import List, Dict, Any, Optional
 from app.core.logger import conversation_logger
+from app.core.config import settings
 
 SYSTEM_PROMPT = """
 You are a hospital receptionist.
@@ -18,7 +19,7 @@ RULES:
 """
 
 class LLMService:
-    def __init__(self, ollama_url: str = "http://localhost:11434", model: str = "llama3"):
+    def __init__(self, ollama_url: str = settings.ollama_url, model: str = settings.ollama_model):
         self.ollama_url = ollama_url
         self.model = model
         self.max_history = 3  # Keep last 3 exchanges for speed
@@ -63,7 +64,7 @@ Assistant:
                         "repeat_penalty": 1.1   # Penalize repetition
                     }
                 },
-                timeout=30
+                timeout=settings.ollama_timeout_seconds
             )
             
             if response.status_code == 200:

@@ -1,269 +1,268 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, Volume2, User, Clock, Calendar, Settings } from 'lucide-react';
-import axios from 'axios';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Activity, AlertTriangle, Calendar, Database, Mic, Shield, Stethoscope, Volume2 } from 'lucide-react';
+import { getHealth, processVoice, runDemoScenario } from './services/api';
+import { LANGUAGES, VOICE_PERSONAS, VOICE_PROVIDERS } from './config/voicePersonas';
+import { StateBadge } from './components/StateBadge';
+
+const DEMO_SCENARIOS = [
+  { id: 'book_cardiology_appointment', label: 'Book Cardiology' },
+  { id: 'doctor_availability', label: 'Doctor Availability' },
+  { id: 'verified_patient_lookup', label: 'Verified Patient Lookup' },
+  { id: 'visiting_hours_faq', label: 'Visiting Hours FAQ' },
+  { id: 'emergency_escalation', label: 'Emergency Escalation' },
+  { id: 'hindi_english_appointment', label: 'Hindi-English Booking' },
+  { id: 'voice_persona_preview', label: 'Persona Preview' },
+  { id: 'database_provider_fallback', label: 'Provider Fallback Demo' },
+];
+
+const WORKFLOW_STAGES = ['idle', 'listening', 'transcribing', 'thinking', 'speaking'];
 
 function App() {
-  const [isListening, setIsListening] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [sessionId, setSessionId] = useState(`session_${Date.now()}`);
+  const [workflowStage, setWorkflowStage] = useState('idle');
   const [messages, setMessages] = useState([]);
-  const [sessionId, setSessionId] = useState(null);
+  const [partialTranscript, setPartialTranscript] = useState('');
+  const [isBusy, setIsBusy] = useState(false);
+  const [health, setHealth] = useState({ database_connected: false, provider_active: 'local' });
   const [voiceType, setVoiceType] = useState('female');
-  const [status, setStatus] = useState('ready');
-  const messagesEndRef = useRef(null);
+  const [voiceProvider, setVoiceProvider] = useState('local');
+  const [personaId, setPersonaId] = useState('female_warm_indian');
+  const [language, setLanguage] = useState('en-IN');
+  const [lastResult, setLastResult] = useState({});
+  const [speakCancelled, setSpeakCancelled] = useState(false);
+  const timelineRef = useRef(null);
 
   useEffect(() => {
-    // Generate session ID on mount
-    generateSession();
-    
-    // Check backend health
-    checkHealth();
+    refreshHealth();
   }, []);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    timelineRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, partialTranscript]);
 
-  const generateSession = async () => {
+  async function refreshHealth() {
     try {
-      const response = await axios.get('/api/v1/health');
-      if (response.data.status === 'healthy') {
-        setSessionId('session_' + Date.now());
+      const data = await getHealth();
+      setHealth(data);
+      if (data.provider_requested) {
+        setVoiceProvider(data.provider_requested);
       }
     } catch (error) {
-      console.error('Failed to connect to backend:', error);
+      console.error(error);
     }
-  };
+  }
 
-  const checkHealth = async () => {
+  async function handleVoiceCapture() {
+    if (isBusy) return;
+    setIsBusy(true);
+    setSpeakCancelled(false);
+    setWorkflowStage('listening');
+    setPartialTranscript('Listening to patient voice...');
+    await wait(450);
+    setWorkflowStage('transcribing');
+    setPartialTranscript('Transcribing audio...');
     try {
-      const response = await axios.get('/api/v1/health');
-      console.log('Backend health:', response.data);
-    } catch (error) {
-      console.error('Backend health check failed:', error);
-    }
-  };
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const handleMicClick = async () => {
-    if (isListening || isProcessing) return;
-
-    setIsListening(true);
-    setStatus('listening');
-
-    try {
-      const response = await axios.post('/api/v1/voice', {
+      const result = await processVoice({
         session_id: sessionId,
-        voice_type: voiceType
+        voice: voiceType,
+        voice_provider: voiceProvider,
+        persona_id: personaId,
+        language,
       });
-
-      const result = response.data;
-
-      // Add user message
-      if (result.user_input) {
-        setMessages(prev => [...prev, {
-          type: 'user',
-          content: result.user_input,
-          timestamp: new Date().toISOString()
-        }]);
-      }
-
-      // Add assistant response
-      if (result.response) {
-        setMessages(prev => [...prev, {
-          type: 'assistant',
-          content: result.response,
-          timestamp: new Date().toISOString(),
-          intent: result.intent,
-          action: result.action
-        }]);
-      }
-
+      handleResponse(result);
     } catch (error) {
-      console.error('Voice processing error:', error);
-      
-      setMessages(prev => [...prev, {
-        type: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.',
-        timestamp: new Date().toISOString()
-      }]);
+      pushAssistant('I encountered an issue while processing voice. Please try again.');
     } finally {
-      setIsListening(false);
-      setIsProcessing(false);
-      setIsSpeaking(false);
-      setStatus('ready');
+      setPartialTranscript('');
+      setIsBusy(false);
+      setWorkflowStage('idle');
     }
-  };
+  }
 
-  const getStatusIcon = () => {
-    switch (status) {
-      case 'listening':
-        return <Mic className="w-4 h-4" />;
-      case 'processing':
-        return <Clock className="w-4 h-4" />;
-      case 'speaking':
-        return <Volume2 className="w-4 h-4" />;
-      default:
-        return <User className="w-4 h-4" />;
+  async function runScenario(scenarioId) {
+    if (isBusy) return;
+    setIsBusy(true);
+    setSpeakCancelled(false);
+    setWorkflowStage('thinking');
+    setPartialTranscript(`Running demo scenario: ${scenarioId}`);
+    try {
+      const result = await runDemoScenario({
+        scenario: scenarioId,
+        session_id: sessionId,
+        voice_provider: voiceProvider,
+        persona_id: personaId,
+        language,
+      });
+      handleResponse(result);
+    } catch (error) {
+      pushAssistant('Demo scenario failed. Please retry.');
+    } finally {
+      setPartialTranscript('');
+      setIsBusy(false);
+      setWorkflowStage('idle');
     }
-  };
+  }
 
-  const getStatusText = () => {
-    switch (status) {
-      case 'listening':
-        return 'Listening...';
-      case 'processing':
-        return 'Processing...';
-      case 'speaking':
-        return 'Speaking...';
-      default:
-        return 'Ready';
-    }
-  };
+  function handleResponse(result) {
+    setWorkflowStage('thinking');
+    if (result.user_input) pushUser(result.user_input);
+    setWorkflowStage('speaking');
+    pushAssistant(result.display_response || result.response || 'No response');
+    setLastResult(result);
+    setHealth((prev) => ({ ...prev, provider_active: result.provider || prev.provider_active }));
+  }
 
-  const getStatusClass = () => {
-    switch (status) {
-      case 'listening':
-        return 'listening';
-      case 'processing':
-        return 'processing';
-      case 'speaking':
-        return 'speaking';
-      default:
-        return 'ready';
-    }
-  };
+  function pushUser(content) {
+    setMessages((prev) => [...prev, { role: 'user', content, ts: new Date().toISOString() }]);
+  }
+
+  function pushAssistant(content) {
+    setMessages((prev) => [...prev, { role: 'assistant', content, ts: new Date().toISOString() }]);
+  }
+
+  function stopSpeaking() {
+    setSpeakCancelled(true);
+    setWorkflowStage('idle');
+  }
+
+  const timings = lastResult.stage_timings || {};
+  const trustIndicators = useMemo(
+    () => [
+      { label: 'Verified DB Only', value: health.database_connected ? 'Connected' : 'Mock Fallback' },
+      { label: 'Guardrails', value: lastResult.guardrail_status || 'active' },
+      { label: 'Provider Fallback', value: (lastResult.provider || health.provider_active || 'local').toUpperCase() },
+      { label: 'PHI-safe Logging', value: 'Enabled' },
+      { label: 'Emergency Escalation', value: 'Enabled' },
+    ],
+    [health, lastResult]
+  );
 
   return (
-    <div className="min-h-screen bg-dark-50 flex flex-col">
-      {/* Header */}
-      <header className="bg-dark-100 border-b border-dark-200 px-6 py-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
+    <div className="min-h-screen bg-dark-50 text-gray-100">
+      <header className="border-b border-dark-200 bg-dark-100/90 backdrop-blur">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center">
-              <Mic className="w-6 h-6 text-white" />
-            </div>
+            <div className="w-11 h-11 rounded-xl bg-primary-600 flex items-center justify-center"><Stethoscope className="w-6 h-6 text-white" /></div>
             <div>
-              <h1 className="text-xl font-semibold text-white">MedVoice AI</h1>
-              <p className="text-sm text-gray-400">Hospital Voice Assistant</p>
+              <h1 className="text-xl font-semibold">MedVoice Flagship Console</h1>
+              <p className="text-xs text-gray-400">AI hospital receptionist platform</p>
             </div>
           </div>
-          
-          <div className="flex items-center gap-4">
-            {/* Voice Type Selector */}
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-gray-400">Voice:</label>
-              <select 
-                value={voiceType}
-                onChange={(e) => setVoiceType(e.target.value)}
-                className="bg-dark-200 text-gray-100 px-3 py-1 rounded border border-dark-300 focus:outline-none focus:border-primary-500"
-              >
-                <option value="female">Female</option>
-                <option value="male">Male</option>
-              </select>
-            </div>
-            
-            {/* Status Indicator */}
-            <div className={`status-indicator ${getStatusClass()}`}>
-              {getStatusIcon()}
-              <span>{getStatusText()}</span>
-            </div>
+          <div className="flex items-center gap-2">
+            <button onClick={refreshHealth} className="px-3 py-2 rounded-lg bg-dark-200 text-sm">Refresh Health</button>
+            <StateBadge label="Active Provider" value={(health.provider_active || 'local').toUpperCase()} />
+            <StateBadge label="DB" value={health.database_connected ? 'POSTGRES' : 'MOCK'} />
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-6 py-8">
-        {/* Chat Messages */}
-        <div className="flex-1 overflow-y-auto mb-8 space-y-4">
-          {messages.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="w-20 h-20 bg-dark-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Mic className="w-10 h-10 text-gray-400" />
-              </div>
-              <h2 className="text-2xl font-semibold text-white mb-2">Welcome to MedVoice AI</h2>
-              <p className="text-gray-400 mb-6">Click the microphone button to start speaking</p>
-              <div className="text-sm text-gray-500 space-y-1">
-                <p>• Say "book appointment" to schedule a visit</p>
-                <p>• Say "check availability" to see doctor schedules</p>
-                <p>• Provide your OPID for personalized assistance</p>
-              </div>
+      <main className="max-w-7xl mx-auto p-4 grid grid-cols-1 xl:grid-cols-4 gap-4">
+        <aside className="xl:col-span-1 space-y-4">
+          <section className="panel">
+            <h2 className="panel-title"><Mic className="w-4 h-4" /> Voice Config</h2>
+            <div className="space-y-2">
+              <SelectRow label="Provider" value={voiceProvider} onChange={setVoiceProvider} options={VOICE_PROVIDERS} />
+              <SelectRow label="Persona" value={personaId} onChange={setPersonaId} options={VOICE_PERSONAS} />
+              <SelectRow label="Language" value={language} onChange={setLanguage} options={LANGUAGES} />
+              <SelectRow
+                label="Voice Type"
+                value={voiceType}
+                onChange={setVoiceType}
+                options={[{ id: 'female', label: 'Female' }, { id: 'male', label: 'Male' }]}
+              />
             </div>
-          ) : (
-            messages.map((message, index) => (
-              <div
-                key={index}
-                className={`chat-message ${message.type}`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-dark-300 flex items-center justify-center flex-shrink-0">
-                    {message.type === 'user' ? (
-                      <User className="w-4 h-4 text-gray-300" />
-                    ) : (
-                      <Volume2 className="w-4 h-4 text-gray-300" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium mb-1 opacity-70">
-                      {message.type === 'user' ? 'You' : 'Assistant'}
-                      {message.intent && (
-                        <span className="ml-2 text-xs opacity-50">
-                          ({message.intent})
-                        </span>
-                      )}
-                    </p>
-                    <p className="text-sm leading-relaxed">{message.content}</p>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-          <div ref={messagesEndRef} />
-        </div>
+          </section>
+          <section className="panel">
+            <h2 className="panel-title"><Shield className="w-4 h-4" /> Trust & Safety</h2>
+            <div className="space-y-2">
+              {trustIndicators.map((item) => <StateBadge key={item.label} label={item.label} value={item.value} />)}
+            </div>
+          </section>
+          <section className="panel">
+            <h2 className="panel-title"><Activity className="w-4 h-4" /> Demo Scenarios</h2>
+            <div className="grid grid-cols-1 gap-2">
+              {DEMO_SCENARIOS.map((s) => (
+                <button key={s.id} onClick={() => runScenario(s.id)} className="scenario-btn" disabled={isBusy}>{s.label}</button>
+              ))}
+            </div>
+          </section>
+        </aside>
 
-        {/* Microphone Button */}
-        <div className="flex justify-center">
-          <button
-            onClick={handleMicClick}
-            disabled={isListening || isProcessing}
-            className={`mic-button ${(isListening || isProcessing) ? (isListening ? 'listening' : 'processing') : ''}`}
-          >
-            {isListening ? (
-              <MicOff className="w-10 h-10" />
+        <section className="xl:col-span-2 panel">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="panel-title"><Volume2 className="w-4 h-4" /> Realtime Voice Console</h2>
+            <div className="status-pill">{workflowStage.toUpperCase()}</div>
+          </div>
+          <div className="wave-wrap mb-3">
+            <div className={`wave ${workflowStage !== 'idle' ? 'active' : ''}`} />
+            <p className="text-sm text-gray-300">{partialTranscript || 'System ready for next patient turn.'}</p>
+          </div>
+          <div className="flex items-center gap-3 mb-4">
+            <button onClick={handleVoiceCapture} disabled={isBusy} className="mic-button">{isBusy ? 'Processing...' : 'Start Voice Turn'}</button>
+            <button onClick={stopSpeaking} className="px-4 py-2 rounded-lg bg-dark-200 text-sm">Stop / Cancel Speaking</button>
+            {speakCancelled && <span className="text-xs text-yellow-300">Speaking cancelled</span>}
+          </div>
+
+          <div className="grid grid-cols-5 gap-2 mb-4">
+            {WORKFLOW_STAGES.map((s) => (
+              <div key={s} className={`stage-chip ${workflowStage === s ? 'active' : ''}`}>{s}</div>
+            ))}
+          </div>
+
+          <div className="timeline">
+            {messages.length === 0 ? (
+              <div className="text-sm text-gray-400 py-8 text-center">No interactions yet. Use microphone or demo scenarios.</div>
             ) : (
-              <Mic className="w-10 h-10" />
+              messages.map((m, idx) => (
+                <div key={`${m.ts}-${idx}`} className={`timeline-item ${m.role}`}>
+                  <p className="text-xs opacity-70 mb-1">{m.role === 'user' ? 'Patient' : 'MedVoice AI'}</p>
+                  <p>{m.content}</p>
+                </div>
+              ))
             )}
-          </button>
-        </div>
+            <div ref={timelineRef} />
+          </div>
+        </section>
 
-        {/* Quick Actions */}
-        <div className="mt-8 flex justify-center gap-4">
-          <button className="px-4 py-2 bg-dark-200 hover:bg-dark-300 rounded-lg text-sm text-gray-300 transition-colors">
-            <Calendar className="w-4 h-4 inline mr-2" />
-            Book Appointment
-          </button>
-          <button className="px-4 py-2 bg-dark-200 hover:bg-dark-300 rounded-lg text-sm text-gray-300 transition-colors">
-            <Clock className="w-4 h-4 inline mr-2" />
-            Check Availability
-          </button>
-          <button className="px-4 py-2 bg-dark-200 hover:bg-dark-300 rounded-lg text-sm text-gray-300 transition-colors">
-            <Settings className="w-4 h-4 inline mr-2" />
-            Settings
-          </button>
-        </div>
+        <aside className="xl:col-span-1 space-y-4">
+          <section className="panel">
+            <h2 className="panel-title"><Database className="w-4 h-4" /> Latency & State</h2>
+            <div className="space-y-2">
+              <StateBadge label="Intent" value={lastResult.intent || '-'} />
+              <StateBadge label="Confidence" value={lastResult.confidence ?? '-'} />
+              <StateBadge label="STT" value={`${timings.stt_latency_ms || 0} ms`} />
+              <StateBadge label="LLM" value={`${timings.llm_latency_ms || 0} ms`} />
+              <StateBadge label="TTS" value={`${timings.tts_latency_ms || 0} ms`} />
+              <StateBadge label="Total" value={`${timings.total_latency_ms || lastResult.latency_ms || 0} ms`} />
+            </div>
+          </section>
+          <section className="panel">
+            <h2 className="panel-title"><Calendar className="w-4 h-4" /> Structured Result</h2>
+            <pre className="text-xs bg-dark-200 p-3 rounded-lg overflow-auto max-h-64">{JSON.stringify(lastResult.structured_data || {}, null, 2)}</pre>
+          </section>
+          <section className="panel">
+            <h2 className="panel-title"><AlertTriangle className="w-4 h-4 text-yellow-300" /> Emergency Guidance</h2>
+            <p className="text-sm text-gray-300">In emergency phrases, MedVoice escalates immediately and avoids diagnosis.</p>
+          </section>
+        </aside>
       </main>
-
-      {/* Footer */}
-      <footer className="bg-dark-100 border-t border-dark-200 px-6 py-4">
-        <div className="max-w-4xl mx-auto text-center text-sm text-gray-400">
-          <p>MedVoice AI - Powered by advanced voice recognition and AI</p>
-        </div>
-      </footer>
     </div>
   );
+}
+
+function SelectRow({ label, value, onChange, options }) {
+  return (
+    <div>
+      <label className="text-xs text-gray-400">{label}</label>
+      <select value={value} onChange={(e) => onChange(e.target.value)} className="input-select">
+        {options.map((opt) => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export default App;

@@ -1,22 +1,52 @@
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from typing import Optional, Dict, Any
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel, Field, ConfigDict
+from typing import Optional
 from app.services.voice_service import VoiceService
-from app.repo.mock_db import get_doctors, get_appointments, add_appointment, get_patient
 from app.services.llm_service import llm_service
+from app.core.auth import require_api_key
+from app.core.config import settings
+from app.services.appointment_service import appointment_service
+from app.services.availability_service import availability_service
+from app.services.patient_service import patient_service
+from app.db.session import check_db_connection
+from app.voice.providers import get_voice_provider
 
 router = APIRouter()
 voice_service = VoiceService()
 
 class VoiceRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     session_id: Optional[str] = None
-    voice: str = "female"
+    voice: str = Field(default="female", alias="voice_type")
+    voice_provider: Optional[str] = None
+    persona_id: Optional[str] = None
+    language: Optional[str] = None
 
 class AppointmentRequest(BaseModel):
     patient_opid: str
     specialization: str
     preferred_time: str
     doctor_name: Optional[str] = None
+
+class DemoRequest(BaseModel):
+    scenario: str
+    session_id: Optional[str] = None
+    voice_provider: Optional[str] = None
+    persona_id: Optional[str] = None
+    language: Optional[str] = None
+
+
+DEMO_SCENARIOS = {
+    "book_cardiology_appointment": "Book cardiology appointment for patient OPID 411326 tomorrow at 10 am",
+    "doctor_availability": "Check availability for dermatologist",
+    "verified_patient_lookup": "Lookup patient record for OPID 411326",
+    "visiting_hours_faq": "What are your visiting hours?",
+    "emergency_escalation": "I have severe chest pain and cannot breathe",
+    "hindi_english_appointment": "Mujhe kal dermatology appointment book karna hai OPID 411326",
+    "voice_persona_preview": "Introduce yourself as a hospital receptionist",
+    "database_provider_fallback": "Show me provider fallback status and database health",
+}
 
 @router.post("/voice")
 async def handle_voice(request: VoiceRequest):
@@ -29,63 +59,66 @@ async def handle_voice(request: VoiceRequest):
             None, 
             voice_service.process_voice,
             request.session_id,
-            request.voice
+            request.voice,
+            request.voice_provider,
+            request.persona_id,
+            request.language,
         )
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@router.post("/voice/stream")
+async def handle_voice_stream(request: VoiceRequest):
+    """
+    Streaming-ready endpoint surface for future SSE/WebSocket rollout.
+    Currently returns the same contract so frontend can stay streaming-ready.
+    """
+    result = await handle_voice(request)
+    result["streaming_ready"] = True
+    return result
+
+
+@router.post("/voice/demo")
+async def run_demo_scenario(request: DemoRequest):
+    scenario_input = DEMO_SCENARIOS.get(request.scenario)
+    if not scenario_input:
+        raise HTTPException(status_code=400, detail="Unknown demo scenario")
+    result = voice_service.process_text(
+        user_text=scenario_input,
+        session_id=request.session_id,
+        preferred_provider=request.voice_provider,
+        persona_id=request.persona_id,
+        language=request.language,
+    )
+    result["demo_scenario"] = request.scenario
+    return result
+
 @router.get("/availability")
 async def check_availability(specialization: Optional[str] = None):
     """Check doctor availability"""
     try:
-        if specialization:
-            doctors = get_doctors(specialization)
-            if not doctors:
-                return {"message": f"No {specialization} doctors available", "doctors": []}
-        else:
-            doctors = get_doctors()
-            # Flatten all doctors
-            all_doctors = []
-            for spec, doc_list in doctors.items():
-                for doctor in doc_list:
-                    doctor["specialization"] = spec
-                    all_doctors.append(doctor)
-            doctors = all_doctors
-        
-        return {
-            "specialization": specialization,
-            "doctors": doctors,
-            "count": len(doctors)
-        }
+        result = availability_service.get(specialization)
+        if specialization and result["count"] == 0:
+            return {"message": f"No {specialization} doctors available", "doctors": []}
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/appointment")
-async def book_appointment(request: AppointmentRequest):
+async def book_appointment(request: AppointmentRequest, _: None = Depends(require_api_key)):
     """Book a new appointment"""
     try:
-        # Validate patient
-        patient = get_patient(request.patient_opid)
-        if not patient:
+        patient = patient_service.get_by_opid(request.patient_opid)
+        if patient is None:
             raise HTTPException(status_code=404, detail="Patient not found")
-        
-        # Check doctor availability
-        doctors = get_doctors(request.specialization)
-        if not doctors:
-            raise HTTPException(status_code=404, detail="No doctors available for this specialization")
-        
-        # Create appointment
-        appointment_data = {
-            "patient_opid": request.patient_opid,
-            "patient_name": patient["name"],
-            "specialization": request.specialization,
-            "requested_time": request.preferred_time,
-            "doctor_name": request.doctor_name or doctors[0]["name"],
-            "status": "confirmed"
-        }
-        
-        appointment = add_appointment(appointment_data)
+        appointment = appointment_service.book(
+            patient_opid=request.patient_opid,
+            specialization=request.specialization,
+            preferred_time=request.preferred_time,
+            doctor_name=request.doctor_name,
+        )
         
         return {
             "message": "Appointment booked successfully",
@@ -93,22 +126,23 @@ async def book_appointment(request: AppointmentRequest):
         }
     except HTTPException:
         raise
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/appointments")
-async def get_appointments(patient_opid: Optional[str] = None):
+async def get_appointments_route(
+    patient_opid: Optional[str] = None,
+    _: None = Depends(require_api_key),
+):
     """Get appointments, optionally filtered by patient"""
     try:
         if patient_opid:
-            # Validate patient
-            patient = get_patient(patient_opid)
+            patient = patient_service.get_by_opid(patient_opid)
             if not patient:
                 raise HTTPException(status_code=404, detail="Patient not found")
-            
-            appointments = [apt for apt in get_appointments() if apt.get("patient_opid") == patient_opid]
-        else:
-            appointments = get_appointments()
+        appointments = appointment_service.list(patient_opid=patient_opid)
         
         return {
             "patient_opid": patient_opid,
@@ -121,10 +155,10 @@ async def get_appointments(patient_opid: Optional[str] = None):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/patient/{opid}")
-async def get_patient_info(opid: str):
+async def get_patient_info(opid: str, _: None = Depends(require_api_key)):
     """Get patient information by OPID"""
     try:
-        patient = get_patient(opid)
+        patient = patient_service.get_by_opid(opid)
         if not patient:
             raise HTTPException(status_code=404, detail="Patient not found")
         
@@ -145,10 +179,13 @@ async def health_check():
         return {
             "status": "healthy",
             "ollama_connected": ollama_status,
+            "database_connected": check_db_connection(),
+            "provider_requested": settings.voice_provider,
+            "provider_active": get_voice_provider().name,
             "services": {
                 "voice_pipeline": True,
                 "intent_service": True,
-                "mock_db": True,
+                "repository_layer": True,
                 "logger": True
             }
         }

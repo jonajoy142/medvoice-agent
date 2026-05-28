@@ -1,164 +1,272 @@
-# MedVoice AI
+# MedVoice Flagship
 
-Production-quality hospital voice assistant system with structured intent routing and modern UI.
+MedVoice is a production-style AI hospital voice receptionist platform with realtime conversational UX, healthcare guardrails, configurable voice providers, and migration-ready database architecture.
 
-## Features
+## Product Pitch
 
-- **Voice Processing**: Whisper STT with silence detection and error handling
-- **Intent Recognition**: Rule-based routing for appointments, availability, patient lookup
-- **LLM Integration**: Ollama (llama3) with strict hallucination prevention
-- **Database**: In-memory mock database with patients, doctors, appointments
-- **Logging**: Complete conversation tracking with structured logs
-- **Modern UI**: React + TailwindCSS frontend with voice controls
-- **API**: FastAPI backend with async endpoints
+MedVoice demonstrates a pilot-ready AI receptionist for hospitals and clinics:
+- Conversational appointment booking
+- Doctor availability lookup
+- Verified patient record lookup
+- FAQ assistant
+- Emergency-safe escalation
+- Voice provider switching (Local/Sarvam-ready)
 
-## Architecture
+## Why This Project Matters
 
+It combines voice AI engineering, safety-first healthcare UX, and startup-grade architecture in one deployable repository suitable for recruiter demos and technical interviews.
+
+## Architecture Overview
+
+### System Diagram (Logical)
+
+```text
+Patient Voice/UI
+   -> FastAPI API Layer
+      -> Voice Service Orchestrator
+         -> STT Provider (Local | Sarvam-ready)
+         -> Intent + Guardrail Routing
+         -> LLM Service (Ollama)
+         -> TTS Provider (Local | Sarvam-ready)
+      -> Repository Factory
+         -> Mock Repositories (default dev stability)
+         -> SQLAlchemy Repositories (Postgres mode)
+            -> Docker Postgres / Managed Postgres / Supabase Postgres
 ```
-medVoice-ai/
-├── app/
-│   ├── core/
-│   │   ├── voice_pipeline.py    # Audio recording, STT, TTS
-│   │   └── logger.py           # Conversation logging
-│   ├── services/
-│   │   ├── llm_service.py      # Ollama integration
-│   │   ├── intent_service.py   # Intent detection & routing
-│   │   └── voice_service.py    # Main voice processing
-│   ├── repo/
-│   │   └── mock_db.py          # In-memory database
-│   └── api/v1/
-│       └── routes_voice.py     # FastAPI endpoints
-├── frontend/                   # React + Vite + TailwindCSS
-└── logs/                      # Conversation logs
+
+### Backend Architecture
+
+- `app/api/v1/routes_voice.py`: API contracts, voice routes, demo scenarios, health.
+- `app/services/`: domain services and voice orchestration.
+- `app/repositories/`: repository pattern with mock + SQLAlchemy implementations.
+- `app/models/`: persistence entities (`patients`, `doctors`, `appointments`, `conversation_sessions`, `audit_logs`).
+- `app/voice/`: provider abstraction + voice personas.
+- `app/core/`: config, auth, logger, legacy voice pipeline integration.
+
+### Frontend Architecture
+
+- `frontend/src/App.jsx`: premium dashboard shell + realtime state machine UX.
+- `frontend/src/services/api.js`: API abstraction.
+- `frontend/src/config/voicePersonas.js`: provider/language/persona catalogs.
+- `frontend/src/components/StateBadge.jsx`: reusable status cards.
+
+### Voice Architecture
+
+- Default provider: `local`.
+- Optional provider: `sarvam` (config-driven, key required).
+- Automatic fallback: if Sarvam requested but unavailable/misconfigured, local is used.
+- Persona system includes 10 configurable profiles.
+
+### Database Architecture
+
+- Docker Postgres for local production-like persistence.
+- SQLAlchemy models + repository pattern.
+- Alembic migrations for production schema management.
+- Mock fallback keeps local demos stable without DB.
+
+### Realtime UX Architecture
+
+- Frontend stage machine: `idle -> listening -> transcribing -> thinking -> speaking`.
+- Backend returns structured response contract with stage timings:
+  - `stt_latency_ms`
+  - `llm_latency_ms`
+  - `tts_latency_ms`
+  - `total_latency_ms`
+- Streaming-ready endpoint: `/api/v1/voice/stream` (contract-compatible placeholder).
+
+## Structured Response Contract
+
+```json
+{
+  "intent": "book_appointment",
+  "confidence": 0.92,
+  "spoken_response": "Sure, I can help with that.",
+  "display_response": "Sure, I can help with that.",
+  "structured_data": {},
+  "guardrail_status": "active",
+  "provider": "local",
+  "persona": "female_warm_indian",
+  "language": "en-IN",
+  "latency_ms": 240.3,
+  "stage_timings": {
+    "stt_latency_ms": 80.1,
+    "llm_latency_ms": 110.7,
+    "tts_latency_ms": 42.2,
+    "total_latency_ms": 240.3
+  },
+  "requires_confirmation": true,
+  "safe_to_speak": true
+}
 ```
 
-## Prerequisites
+## Healthcare Safety Guardrails
 
-1. **Python 3.11**
-2. **Ollama** with llama3 model:
-   ```bash
-   curl -fsSL https://ollama.ai/install.sh | sh
-   ollama pull llama3
-   ollama serve
-   ```
+- Never fabricates patient/doctor/appointment records.
+- Emergency phrase detection triggers escalation-safe response.
+- PHI-safe logging redacts sensitive values.
+- Optional API key guard for patient-sensitive endpoints.
+- Provider fallback avoids hard failures in live demos.
 
-3. **Node.js 18+** (for frontend)
+## Setup
 
-## Installation
+## 1) Prerequisites
 
-### Backend
+- Python 3.11
+- Node 18+
+- Docker Desktop
+- Ollama running with `llama3`
+
+## 2) Backend install
+
 ```bash
-cd medVoice-ai
 pip install -e .
 ```
 
-### Frontend
+## 3) Frontend install
+
 ```bash
 cd frontend
 npm install
 ```
 
-## Usage
+## 4) Environment
 
-### Start Backend
+Create `.env` from `.env.example`.
+
+## 5) Start Docker Postgres
+
+```bash
+docker compose up -d postgres
+```
+
+## 6) Run migrations (production path)
+
+```bash
+alembic upgrade head
+```
+
+## 7) Seed demo data (optional when DB mode enabled)
+
+```bash
+python scripts/seed_demo_data.py
+```
+
+## 8) Run backend
+
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### Start Frontend
+## 9) Run frontend
+
 ```bash
 cd frontend
 npm run dev
 ```
 
-### Test Voice Interface
-```bash
-python test.py
+## Alembic Guide
+
+- Upgrade:
+  - `alembic upgrade head`
+- Create new migration:
+  - `alembic revision --autogenerate -m "message"`
+- Downgrade one step:
+  - `alembic downgrade -1`
+
+Alembic reads `DATABASE_URL` from app config/env via `alembic/env.py`.
+
+## Provider Switching (Local vs Sarvam)
+
+Local mode (default):
+
+```env
+VOICE_PROVIDER=local
 ```
+
+Sarvam mode:
+
+```env
+VOICE_PROVIDER=sarvam
+SARVAM_API_KEY=your_key
+SARVAM_TTS_MODEL=...
+SARVAM_STT_MODEL=...
+SARVAM_TTS_URL=...
+SARVAM_STT_URL=...
+```
+
+Behavior:
+- `VOICE_PROVIDER=local` -> always local
+- `VOICE_PROVIDER=sarvam` + key/config present -> Sarvam attempted
+- `VOICE_PROVIDER=sarvam` but missing/failed config -> automatic fallback to local
+
+No code changes are needed to switch provider.
+
+## Supabase Migration Path
+
+Current architecture is Supabase-ready:
+- Set `DATABASE_URL` to Supabase Postgres connection string.
+- Keep repositories/services unchanged.
+- Optionally add Supabase auth/storage adapters later (TODO hooks in code).
+
+## Recruiter Demo Walkthrough
+
+Use one-click scenarios from dashboard:
+1. Book cardiology appointment
+2. Doctor availability lookup
+3. Verified patient lookup
+4. Visiting hours FAQ
+5. Emergency escalation
+6. Hindi-English appointment flow
+7. Persona preview
+8. Provider fallback + DB health demo
+
+Narrative script:
+1. Show health panel (DB + provider).
+2. Switch persona/language/provider live.
+3. Run two normal scenarios + one emergency scenario.
+4. Highlight latency cards and guardrail panel.
+5. Show fallback behavior by selecting Sarvam without valid key.
+6. Conclude with migration readiness (Docker Postgres + Alembic + Supabase path).
 
 ## API Endpoints
 
-- `POST /api/v1/voice` - Process voice input
-- `GET /api/v1/availability` - Check doctor availability
-- `POST /api/v1/appointment` - Book appointment
-- `GET /api/v1/appointments` - Get appointments
-- `GET /api/v1/patient/{opid}` - Get patient info
-- `GET /api/v1/health` - System health check
+- `POST /api/v1/voice`
+- `POST /api/v1/voice/stream`
+- `POST /api/v1/voice/demo`
+- `GET /api/v1/availability`
+- `POST /api/v1/appointment`
+- `GET /api/v1/appointments`
+- `GET /api/v1/patient/{opid}`
+- `GET /api/v1/health`
 
-## Sample Interactions
+## Validation Commands
 
-1. **Book Appointment**: "I want to book an appointment with dermatologist"
-2. **Check Availability**: "When are doctors available?"
-3. **Patient Lookup**: "My OPID is 411326"
-4. **General Chat**: "Hello, how are you?"
+- Backend tests:
+  - `python -m pytest -q`
+- Frontend build:
+  - `cd frontend && npm run build`
+- Docker compose validation:
+  - `docker compose config`
+- Migrations:
+  - `alembic upgrade head`
 
-## Intent System
+## Screenshots Placeholders
 
-The system uses rule-based intent detection:
-- `greeting` - Hello, hi, etc.
-- `book_appointment` - Schedule appointments
-- `check_availability` - Doctor schedules
-- `patient_lookup` - Find patient by OPID
-- `doctor_info` - Doctor information
-- `goodbye` - End conversation
+- `docs/screenshots/dashboard-overview.png`
+- `docs/screenshots/voice-console.png`
+- `docs/screenshots/demo-scenarios.png`
+- `docs/screenshots/health-guardrails-panel.png`
 
-## Hallucination Prevention
+## Limitations (Honest)
 
-Strict LLM rules prevent:
-- Creating fake patient data
-- Modifying OPID numbers
-- Inventing doctor names
-- Only uses database-provided information
+- Sarvam payload contracts are integration-ready but may need endpoint-specific payload refinement.
+- `/voice/stream` is streaming-ready contract surface, not full SSE audio chunking yet.
+- Local STT/TTS still relies on host audio stack quality.
 
-## Frontend Features
+## Production Roadmap
 
-- **Voice Controls**: Click-to-speak microphone
-- **Voice Selection**: Male/female TTS options
-- **Status Indicators**: Listening, processing, speaking
-- **Chat Interface**: Real-time conversation display
-- **Dark Mode**: Modern, clean UI design
-
-## Performance Optimizations
-
-- Whisper "base" model for faster transcription
-- Async API endpoints
-- Thread pool execution for voice processing
-- Efficient session management
-- Minimal LLM token usage
-
-## Development
-
-### Add New Intents
-1. Update `intent_service.py` patterns
-2. Add routing logic in `route_intent()`
-3. Test with voice input
-
-### Add Database Entities
-1. Update `mock_db.py` data structures
-2. Add corresponding service functions
-3. Update API endpoints
-
-## Logging
-
-All conversations are logged to `logs/conversations.log` with:
-- Timestamp
-- Session ID
-- User input
-- AI response
-- Intent and entities
-- Action taken
-
-## Troubleshooting
-
-1. **Ollama Connection**: Ensure `ollama serve` is running
-2. **Audio Issues**: Check microphone permissions
-3. **Frontend Errors**: Verify backend is running on port 8000
-4. **Whisper Warnings**: Suppressed in production mode
-
-## Production Deployment
-
-1. Configure environment variables
-2. Set up proper logging rotation
-3. Add authentication to API endpoints
-4. Configure CORS for production domain
-5. Set up monitoring and health checks
+- Full SSE/WebSocket streaming with barge-in control.
+- Strong auth/RBAC and tenant isolation.
+- Observability stack (Prometheus/Grafana/OpenTelemetry).
+- Supabase auth/storage integration and managed deployment templates.
+- Clinical safety policy engine and red-team tests.
