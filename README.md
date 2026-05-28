@@ -157,9 +157,11 @@ For Render/Railway/Fly.io:
 - Set `DATABASE_URL` for managed Postgres or Supabase.
 
 For Vercel:
-- Project root: `frontend`
+- Preferred project root: `frontend`
 - Build command: `npm run build`
 - Output directory: `dist`
+- If Vercel is connected at the repository root, the root `vercel.json` delegates install/build/output to `frontend/`.
+- If Vercel tries to build `backend/`, change the Vercel project Root Directory to `frontend` in Settings -> Build & Development Settings.
 - Configure API base URL for the deployed backend when moving beyond the local Vite proxy.
 
 ## Validation
