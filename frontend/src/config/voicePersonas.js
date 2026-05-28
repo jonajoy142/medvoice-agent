@@ -1,5 +1,6 @@
 export const VOICE_PROVIDERS = [
   { id: 'local', label: 'Local Provider' },
+  { id: 'openai', label: 'OpenAI STT' },
   { id: 'sarvam', label: 'Sarvam (fallback to local)' },
 ];
 

@@ -22,9 +22,7 @@ export async function processVoice(payload) {
   if (payload.persona_id) formData.append('persona_id', payload.persona_id);
   if (payload.language) formData.append('language', payload.language);
 
-  const response = await api.post('/api/v1/voice', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  const response = await api.post('/api/v1/voice', formData);
   return response.data;
 }
 

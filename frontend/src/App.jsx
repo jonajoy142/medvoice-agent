@@ -135,10 +135,18 @@ function App() {
       handleResponse(result);
     } catch (caught) {
       const permissionDenied = caught?.name === 'NotAllowedError' || caught?.name === 'SecurityError';
+      const serverDetail = caught?.response?.data?.detail;
+      const status = caught?.response?.status;
+      const message = permissionDenied
+        ? 'Microphone permission was denied. Allow microphone access in the browser and retry.'
+          : serverDetail
+            ? `Voice processing failed (${status || 'server'}): ${serverDetail}`
+          : caught?.message
+            ? `Voice processing failed: ${caught.message}`
+            : 'Voice processing failed before the backend returned details. Open DevTools and retry.';
+      console.error('Voice processing failed', caught);
       setError(
-        permissionDenied
-          ? 'Microphone permission was denied. Allow microphone access in the browser and retry.'
-          : 'Voice processing failed. Check microphone permissions and backend availability.'
+        message
       );
       pushAssistant('I could not process the voice turn. Please try again.');
     } finally {
