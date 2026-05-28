@@ -9,7 +9,11 @@ app = FastAPI(title=settings.app_name)
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=list(settings.cors_origins),
+    allow_origins=[
+        "https://medvoice-agent.vercel.app",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
