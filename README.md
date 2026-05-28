@@ -1,232 +1,181 @@
-# MedVoice Flagship
+# MedVoice AI
 
-MedVoice is a production-style AI hospital voice receptionist platform with realtime conversational UX, healthcare guardrails, configurable voice providers, and migration-ready database architecture.
+MedVoice is a FastAPI + React hospital voice receptionist demo with deterministic healthcare guardrails, optional LLM phrasing providers, voice provider switching, and Postgres-ready persistence.
 
-## Product Pitch
-
-MedVoice demonstrates a pilot-ready AI receptionist for hospitals and clinics:
-- Conversational appointment booking
-- Doctor availability lookup
-- Verified patient record lookup
-- FAQ assistant
-- Emergency-safe escalation
-- Voice provider switching (Local/Sarvam-ready)
-
-## Why This Project Matters
-
-It combines voice AI engineering, safety-first healthcare UX, and startup-grade architecture in one deployable repository suitable for recruiter demos and technical interviews.
-
-## Architecture Overview
-
-### System Diagram (Logical)
+## Repository Split
 
 ```text
-Patient Voice/UI
-   -> FastAPI API Layer
-      -> Voice Service Orchestrator
-         -> STT Provider (Local | Sarvam-ready)
-         -> Intent + Guardrail Routing
-         -> LLM Service (Ollama)
-         -> TTS Provider (Local | Sarvam-ready)
-      -> Repository Factory
-         -> Mock Repositories (default dev stability)
-         -> SQLAlchemy Repositories (Postgres mode)
-            -> Docker Postgres / Managed Postgres / Supabase Postgres
+medVoice-ai/
+  backend/          FastAPI app, tests, Alembic, Poetry, backend Dockerfile
+  frontend/         React/Vite app
+  docker-compose.yml
+  README.md
 ```
 
-### Backend Architecture
+Deployment split:
+- Frontend: Vercel
+- Backend: Render, Railway, Fly.io, or any container host
+- Database: Docker Postgres locally, Supabase Postgres later
 
-- `app/api/v1/routes_voice.py`: API contracts, voice routes, demo scenarios, health.
-- `app/services/`: domain services and voice orchestration.
-- `app/repositories/`: repository pattern with mock + SQLAlchemy implementations.
-- `app/models/`: persistence entities (`patients`, `doctors`, `appointments`, `conversation_sessions`, `audit_logs`).
-- `app/voice/`: provider abstraction + voice personas.
-- `app/core/`: config, auth, logger, legacy voice pipeline integration.
+## Architecture
 
-### Frontend Architecture
-
-- `frontend/src/App.jsx`: premium dashboard shell + realtime state machine UX.
-- `frontend/src/services/api.js`: API abstraction.
-- `frontend/src/config/voicePersonas.js`: provider/language/persona catalogs.
-- `frontend/src/components/StateBadge.jsx`: reusable status cards.
-
-### Voice Architecture
-
-- Default provider: `local`.
-- Optional provider: `sarvam` (config-driven, key required).
-- Automatic fallback: if Sarvam requested but unavailable/misconfigured, local is used.
-- Persona system includes 10 configurable profiles.
-
-### Database Architecture
-
-- Docker Postgres for local production-like persistence.
-- SQLAlchemy models + repository pattern.
-- Alembic migrations for production schema management.
-- Mock fallback keeps local demos stable without DB.
-
-### Realtime UX Architecture
-
-- Frontend stage machine: `idle -> listening -> transcribing -> thinking -> speaking`.
-- Backend returns structured response contract with stage timings:
-  - `stt_latency_ms`
-  - `llm_latency_ms`
-  - `tts_latency_ms`
-  - `total_latency_ms`
-- Streaming-ready endpoint: `/api/v1/voice/stream` (contract-compatible placeholder).
-
-## Structured Response Contract
-
-```json
-{
-  "intent": "book_appointment",
-  "confidence": 0.92,
-  "spoken_response": "Sure, I can help with that.",
-  "display_response": "Sure, I can help with that.",
-  "structured_data": {},
-  "guardrail_status": "active",
-  "provider": "local",
-  "persona": "female_warm_indian",
-  "language": "en-IN",
-  "latency_ms": 240.3,
-  "stage_timings": {
-    "stt_latency_ms": 80.1,
-    "llm_latency_ms": 110.7,
-    "tts_latency_ms": 42.2,
-    "total_latency_ms": 240.3
-  },
-  "requires_confirmation": true,
-  "safe_to_speak": true
-}
+```text
+Frontend UI
+  -> FastAPI API
+    -> VoiceService
+      -> Intent + healthcare guardrails
+      -> deterministic workflows for records, appointments, availability, emergency handling
+      -> optional LLM phrasing for generic unsupported turns only
+    -> Repository factory
+      -> mock repositories by default
+      -> SQLAlchemy repositories when USE_DATABASE=true
+    -> Docker Postgres / Supabase-compatible Postgres
 ```
 
-## Healthcare Safety Guardrails
+Safety rules:
+- Patient chart and record requests require verified patient ID or phone number plus DOB.
+- Patient lookup, appointments, doctor availability, emergency escalation, and verified-data FAQ flows do not require an LLM.
+- LLM providers must not invent patient, doctor, appointment, or medical facts.
+- Missing hosted API keys or unavailable Ollama fall back to deterministic responses.
 
-- Never fabricates patient/doctor/appointment records.
-- Emergency phrase detection triggers escalation-safe response.
-- PHI-safe logging redacts sensitive values.
-- Optional API key guard for patient-sensitive endpoints.
-- Provider fallback avoids hard failures in live demos.
+## Local Development
 
-## Setup
-
-## 1) Prerequisites
-
-- Python 3.11
-- Node 18+
-- Docker Desktop
-- Ollama running with `llama3`
-
-## 2) Backend install
-
-```bash
-pip install -e .
-```
-
-## 3) Frontend install
-
-```bash
-cd frontend
-npm install
-```
-
-## 4) Environment
-
-Create `.env` from `.env.example`.
-
-## 5) Start Docker Postgres
+### 1. Start Postgres from the root
 
 ```bash
 docker compose up -d postgres
 ```
 
-## 6) Run migrations (production path)
+### 2. Backend
 
 ```bash
-alembic upgrade head
+cd backend
+poetry install
+cp .env.example .env
+poetry run alembic upgrade head
+poetry run uvicorn app.main:app --reload
 ```
 
-## 7) Seed demo data (optional when DB mode enabled)
+Backend runs at `http://localhost:8000`.
+
+Root convenience commands are also available after `poetry install` from the repo root:
 
 ```bash
-python scripts/seed_demo_data.py
+poetry run backend-dev
+poetry run backend-test
+poetry run backend-migrate
 ```
 
-## 8) Run backend
-
-```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-## 9) Run frontend
+### 3. Frontend
 
 ```bash
 cd frontend
+npm install
 npm run dev
 ```
 
-## Alembic Guide
+Frontend runs at `http://localhost:3000`.
 
-- Upgrade:
-  - `alembic upgrade head`
-- Create new migration:
-  - `alembic revision --autogenerate -m "message"`
-- Downgrade one step:
-  - `alembic downgrade -1`
+## LLM Providers
 
-Alembic reads `DATABASE_URL` from app config/env via `alembic/env.py`.
-
-## Provider Switching (Local vs Sarvam)
-
-Local mode (default):
+Configure the backend with:
 
 ```env
-VOICE_PROVIDER=local
+LLM_PROVIDER=deterministic|ollama|openai|groq|openrouter
+LLM_FALLBACK_PROVIDER=deterministic
+LLM_ENABLE_FALLBACK=true
+LLM_TIMEOUT_SECONDS=8
 ```
 
-Sarvam mode:
+Default production-safe mode:
 
 ```env
-VOICE_PROVIDER=sarvam
-SARVAM_API_KEY=your_key
-SARVAM_TTS_MODEL=...
-SARVAM_STT_MODEL=...
-SARVAM_TTS_URL=...
-SARVAM_STT_URL=...
+LLM_PROVIDER=deterministic
 ```
 
-Behavior:
-- `VOICE_PROVIDER=local` -> always local
-- `VOICE_PROVIDER=sarvam` + key/config present -> Sarvam attempted
-- `VOICE_PROVIDER=sarvam` but missing/failed config -> automatic fallback to local
+Local Ollama mode:
 
-No code changes are needed to switch provider.
+```env
+LLM_PROVIDER=ollama
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3
+```
 
-## Supabase Migration Path
+Hosted provider mode:
 
-Current architecture is Supabase-ready:
-- Set `DATABASE_URL` to Supabase Postgres connection string.
-- Keep repositories/services unchanged.
-- Optionally add Supabase auth/storage adapters later (TODO hooks in code).
+```env
+LLM_PROVIDER=openai
+OPENAI_API_KEY=...
+OPENAI_MODEL=gpt-4o-mini
+```
 
-## Recruiter Demo Walkthrough
+Groq and OpenRouter are also supported through OpenAI-compatible chat APIs:
 
-Use one-click scenarios from dashboard:
-1. Book cardiology appointment
-2. Doctor availability lookup
-3. Verified patient lookup
-4. Visiting hours FAQ
-5. Emergency escalation
-6. Hindi-English appointment flow
-7. Persona preview
-8. Provider fallback + DB health demo
+```env
+LLM_PROVIDER=groq
+GROQ_API_KEY=...
+GROQ_MODEL=llama-3.1-8b-instant
 
-Narrative script:
-1. Show health panel (DB + provider).
-2. Switch persona/language/provider live.
-3. Run two normal scenarios + one emergency scenario.
-4. Highlight latency cards and guardrail panel.
-5. Show fallback behavior by selecting Sarvam without valid key.
-6. Conclude with migration readiness (Docker Postgres + Alembic + Supabase path).
+LLM_PROVIDER=openrouter
+OPENROUTER_API_KEY=...
+OPENROUTER_MODEL=meta-llama/llama-3.1-8b-instruct
+```
+
+API keys are backend-only environment variables. Do not expose them to the frontend.
+
+## Database
+
+Local Docker Postgres:
+
+```bash
+docker compose up -d postgres
+cd backend
+USE_DATABASE=true poetry run alembic upgrade head
+poetry run python scripts/seed_demo_data.py
+```
+
+Supabase migration path:
+- Create a Supabase Postgres database.
+- Set backend `DATABASE_URL` to the Supabase connection string.
+- Run `cd backend && poetry run alembic upgrade head`.
+- Keep repository and service code unchanged.
+
+## Docker Backend
+
+Build and run the FastAPI container from the repo root:
+
+```bash
+docker build -t medvoice-backend ./backend
+docker run --env-file backend/.env.example -p 8000:8000 medvoice-backend
+```
+
+For Render/Railway/Fly.io:
+- Root/build context: `backend`
+- Dockerfile: `backend/Dockerfile`
+- Start command if not using Docker: `poetry run uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- Set `LLM_PROVIDER=deterministic` unless a hosted provider API key is configured.
+- Set `DATABASE_URL` for managed Postgres or Supabase.
+
+For Vercel:
+- Project root: `frontend`
+- Build command: `npm run build`
+- Output directory: `dist`
+- Configure API base URL for the deployed backend when moving beyond the local Vite proxy.
+
+## Validation
+
+```bash
+cd backend
+poetry install
+poetry run alembic upgrade head
+poetry run pytest -q
+
+cd ../frontend
+npm run build
+
+cd ..
+docker compose config
+```
 
 ## API Endpoints
 
@@ -239,34 +188,8 @@ Narrative script:
 - `GET /api/v1/patient/{opid}`
 - `GET /api/v1/health`
 
-## Validation Commands
+## Limitations
 
-- Backend tests:
-  - `python -m pytest -q`
-- Frontend build:
-  - `cd frontend && npm run build`
-- Docker compose validation:
-  - `docker compose config`
-- Migrations:
-  - `alembic upgrade head`
-
-## Screenshots Placeholders
-
-- `docs/screenshots/dashboard-overview.png`
-- `docs/screenshots/voice-console.png`
-- `docs/screenshots/demo-scenarios.png`
-- `docs/screenshots/health-guardrails-panel.png`
-
-## Limitations (Honest)
-
-- Sarvam payload contracts are integration-ready but may need endpoint-specific payload refinement.
-- `/voice/stream` is streaming-ready contract surface, not full SSE audio chunking yet.
-- Local STT/TTS still relies on host audio stack quality.
-
-## Production Roadmap
-
-- Full SSE/WebSocket streaming with barge-in control.
-- Strong auth/RBAC and tenant isolation.
-- Observability stack (Prometheus/Grafana/OpenTelemetry).
-- Supabase auth/storage integration and managed deployment templates.
-- Clinical safety policy engine and red-team tests.
+- `/voice/stream` is a streaming-ready response contract, not full SSE audio streaming yet.
+- Local STT/TTS still depends on the host audio stack.
+- Strong production auth/RBAC and tenant isolation remain future work.

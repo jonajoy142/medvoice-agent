@@ -1,29 +1,87 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, AlertTriangle, Calendar, Database, Mic, Shield, Stethoscope, Volume2 } from 'lucide-react';
+import {
+  AlertTriangle,
+  CalendarPlus,
+  Clock3,
+  HeartPulse,
+  Languages,
+  Search,
+  ShieldAlert,
+  Stethoscope,
+} from 'lucide-react';
 import { getHealth, processVoice, runDemoScenario } from './services/api';
-import { LANGUAGES, VOICE_PERSONAS, VOICE_PROVIDERS } from './config/voicePersonas';
-import { StateBadge } from './components/StateBadge';
+import { DashboardLayout } from './components/DashboardLayout';
+import { VoiceOrb } from './components/VoiceOrb';
+import { TranscriptPanel } from './components/TranscriptPanel';
+import { ScenarioCard } from './components/ScenarioCard';
+import { ResultCard } from './components/ResultCard';
+import { VoiceSettingsPanel } from './components/VoiceSettingsPanel';
+import { GuardrailPanel } from './components/GuardrailPanel';
+import { LatencyCard } from './components/LatencyCard';
+import { PipelineCard } from './components/PipelineCard';
+import { StatusPill } from './components/StatusPill';
 
 const DEMO_SCENARIOS = [
-  { id: 'book_cardiology_appointment', label: 'Book Cardiology' },
-  { id: 'doctor_availability', label: 'Doctor Availability' },
-  { id: 'verified_patient_lookup', label: 'Verified Patient Lookup' },
-  { id: 'visiting_hours_faq', label: 'Visiting Hours FAQ' },
-  { id: 'emergency_escalation', label: 'Emergency Escalation' },
-  { id: 'hindi_english_appointment', label: 'Hindi-English Booking' },
-  { id: 'voice_persona_preview', label: 'Persona Preview' },
-  { id: 'database_provider_fallback', label: 'Provider Fallback Demo' },
+  {
+    id: 'book_cardiology_appointment',
+    title: 'Book appointment',
+    description: 'Cardiology request with verified OPID context.',
+    icon: CalendarPlus,
+    tone: 'emerald',
+  },
+  {
+    id: 'doctor_availability',
+    title: 'Doctor availability',
+    description: 'Check dermatologist slots from verified data.',
+    icon: Stethoscope,
+    tone: 'cyan',
+  },
+  {
+    id: 'verified_patient_lookup',
+    title: 'Patient chart lookup',
+    description: 'Lookup record only when an identifier is present.',
+    icon: Search,
+    tone: 'amber',
+  },
+  {
+    id: 'visiting_hours_faq',
+    title: 'Visiting hours FAQ',
+    description: 'Static hospital FAQ without LLM dependency.',
+    icon: Clock3,
+    tone: 'cyan',
+  },
+  {
+    id: 'emergency_escalation',
+    title: 'Emergency escalation',
+    description: 'Urgent symptoms trigger safe escalation.',
+    icon: ShieldAlert,
+    tone: 'rose',
+  },
+  {
+    id: 'hindi_english_appointment',
+    title: 'Hindi-English demo',
+    description: 'Bilingual appointment flow with persona settings.',
+    icon: Languages,
+    tone: 'emerald',
+  },
 ];
 
-const WORKFLOW_STAGES = ['idle', 'listening', 'transcribing', 'thinking', 'speaking'];
+const emptyHealth = {
+  status: 'checking',
+  database_connected: false,
+  provider_active: 'local',
+  provider_requested: 'local',
+  llm_provider: { active: 'deterministic', requested: 'deterministic', available: true },
+};
 
 function App() {
-  const [sessionId, setSessionId] = useState(`session_${Date.now()}`);
+  const [sessionId] = useState(`session_${Date.now()}`);
   const [workflowStage, setWorkflowStage] = useState('idle');
   const [messages, setMessages] = useState([]);
   const [partialTranscript, setPartialTranscript] = useState('');
   const [isBusy, setIsBusy] = useState(false);
-  const [health, setHealth] = useState({ database_connected: false, provider_active: 'local' });
+  const [error, setError] = useState('');
+  const [health, setHealth] = useState(emptyHealth);
   const [voiceType, setVoiceType] = useState('female');
   const [voiceProvider, setVoiceProvider] = useState('local');
   const [personaId, setPersonaId] = useState('female_warm_indian');
@@ -37,30 +95,32 @@ function App() {
   }, []);
 
   useEffect(() => {
-    timelineRef.current?.scrollIntoView({ behavior: 'smooth' });
+    timelineRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages, partialTranscript]);
 
   async function refreshHealth() {
     try {
+      setError('');
       const data = await getHealth();
-      setHealth(data);
-      if (data.provider_requested) {
-        setVoiceProvider(data.provider_requested);
-      }
-    } catch (error) {
-      console.error(error);
+      setHealth({ ...emptyHealth, ...data });
+      if (data.provider_requested) setVoiceProvider(data.provider_requested);
+    } catch (caught) {
+      setError('Backend health check failed. Start the FastAPI backend and try again.');
+      setHealth((previous) => ({ ...previous, status: 'offline' }));
     }
   }
 
   async function handleVoiceCapture() {
     if (isBusy) return;
     setIsBusy(true);
+    setError('');
     setSpeakCancelled(false);
     setWorkflowStage('listening');
     setPartialTranscript('Listening to patient voice...');
     await wait(450);
     setWorkflowStage('transcribing');
     setPartialTranscript('Transcribing audio...');
+
     try {
       const result = await processVoice({
         session_id: sessionId,
@@ -70,9 +130,11 @@ function App() {
         language,
       });
       handleResponse(result);
-    } catch (error) {
-      pushAssistant('I encountered an issue while processing voice. Please try again.');
+    } catch (caught) {
+      setError('Voice processing failed. Check microphone permissions and backend availability.');
+      pushAssistant('I could not process the voice turn. Please try again.');
     } finally {
+      await wait(600);
       setPartialTranscript('');
       setIsBusy(false);
       setWorkflowStage('idle');
@@ -81,10 +143,13 @@ function App() {
 
   async function runScenario(scenarioId) {
     if (isBusy) return;
+    const scenario = DEMO_SCENARIOS.find((item) => item.id === scenarioId);
     setIsBusy(true);
+    setError('');
     setSpeakCancelled(false);
     setWorkflowStage('thinking');
-    setPartialTranscript(`Running demo scenario: ${scenarioId}`);
+    setPartialTranscript(`Running ${scenario?.title || 'demo scenario'}...`);
+
     try {
       const result = await runDemoScenario({
         scenario: scenarioId,
@@ -94,9 +159,11 @@ function App() {
         language,
       });
       handleResponse(result);
-    } catch (error) {
+    } catch (caught) {
+      setError('Demo scenario failed. Confirm the backend is running.');
       pushAssistant('Demo scenario failed. Please retry.');
     } finally {
+      await wait(650);
       setPartialTranscript('');
       setIsBusy(false);
       setWorkflowStage('idle');
@@ -106,18 +173,18 @@ function App() {
   function handleResponse(result) {
     setWorkflowStage('thinking');
     if (result.user_input) pushUser(result.user_input);
-    setWorkflowStage('speaking');
-    pushAssistant(result.display_response || result.response || 'No response');
     setLastResult(result);
-    setHealth((prev) => ({ ...prev, provider_active: result.provider || prev.provider_active }));
+    setHealth((previous) => ({ ...previous, provider_active: result.provider || previous.provider_active }));
+    setWorkflowStage('speaking');
+    pushAssistant(result.display_response || result.response || 'No response returned.');
   }
 
   function pushUser(content) {
-    setMessages((prev) => [...prev, { role: 'user', content, ts: new Date().toISOString() }]);
+    setMessages((previous) => [...previous, { role: 'user', content, ts: new Date().toISOString() }]);
   }
 
   function pushAssistant(content) {
-    setMessages((prev) => [...prev, { role: 'assistant', content, ts: new Date().toISOString() }]);
+    setMessages((previous) => [...previous, { role: 'assistant', content, ts: new Date().toISOString() }]);
   }
 
   function stopSpeaking() {
@@ -125,139 +192,136 @@ function App() {
     setWorkflowStage('idle');
   }
 
+  function previewPersona() {
+    runScenario('voice_persona_preview');
+  }
+
   const timings = lastResult.stage_timings || {};
-  const trustIndicators = useMemo(
+  const latencyCards = useMemo(
     () => [
-      { label: 'Verified DB Only', value: health.database_connected ? 'Connected' : 'Mock Fallback' },
-      { label: 'Guardrails', value: lastResult.guardrail_status || 'active' },
-      { label: 'Provider Fallback', value: (lastResult.provider || health.provider_active || 'local').toUpperCase() },
-      { label: 'PHI-safe Logging', value: 'Enabled' },
-      { label: 'Emergency Escalation', value: 'Enabled' },
+      { label: 'STT', value: `${timings.stt_latency_ms || 0} ms` },
+      { label: 'LLM', value: `${timings.llm_latency_ms || 0} ms`, accent: 'emerald' },
+      { label: 'TTS', value: `${timings.tts_latency_ms || 0} ms` },
+      { label: 'Total', value: `${timings.total_latency_ms || lastResult.latency_ms || 0} ms`, accent: 'emerald' },
     ],
-    [health, lastResult]
+    [lastResult.latency_ms, timings.llm_latency_ms, timings.stt_latency_ms, timings.total_latency_ms, timings.tts_latency_ms]
   );
 
   return (
-    <div className="min-h-screen bg-dark-50 text-gray-100">
-      <header className="border-b border-dark-200 bg-dark-100/90 backdrop-blur">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-primary-600 flex items-center justify-center"><Stethoscope className="w-6 h-6 text-white" /></div>
+    <DashboardLayout health={health} onRefreshHealth={refreshHealth}>
+      <section className="space-y-5 lg:col-span-8">
+        <div className="glass-card p-5 sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <h1 className="text-xl font-semibold">MedVoice Flagship Console</h1>
-              <p className="text-xs text-gray-400">AI hospital receptionist platform</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-200/80">Live command center</p>
+              <h2 className="mt-2 max-w-3xl text-3xl font-semibold text-white sm:text-4xl">
+                Patient calls, guarded workflows, and voice AI in one production-grade console.
+              </h2>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
+                MedVoice routes healthcare tasks through deterministic guardrails first, then uses optional LLM providers only for safe phrasing.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <StatusPill label="Session" value={sessionId.slice(-8)} tone="muted" />
+              <StatusPill label="Safe to speak" value={lastResult.safe_to_speak === false ? 'NO' : 'YES'} tone={lastResult.safe_to_speak === false ? 'danger' : 'online'} />
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={refreshHealth} className="px-3 py-2 rounded-lg bg-dark-200 text-sm">Refresh Health</button>
-            <StateBadge label="Active Provider" value={(health.provider_active || 'local').toUpperCase()} />
-            <StateBadge label="DB" value={health.database_connected ? 'POSTGRES' : 'MOCK'} />
-          </div>
+          {error ? (
+            <div className="mt-5 flex items-start gap-3 rounded-2xl border border-amber-300/25 bg-amber-300/10 p-4 text-sm text-amber-100">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              <p>{error}</p>
+            </div>
+          ) : null}
         </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto p-4 grid grid-cols-1 xl:grid-cols-4 gap-4">
-        <aside className="xl:col-span-1 space-y-4">
-          <section className="panel">
-            <h2 className="panel-title"><Mic className="w-4 h-4" /> Voice Config</h2>
-            <div className="space-y-2">
-              <SelectRow label="Provider" value={voiceProvider} onChange={setVoiceProvider} options={VOICE_PROVIDERS} />
-              <SelectRow label="Persona" value={personaId} onChange={setPersonaId} options={VOICE_PERSONAS} />
-              <SelectRow label="Language" value={language} onChange={setLanguage} options={LANGUAGES} />
-              <SelectRow
-                label="Voice Type"
-                value={voiceType}
-                onChange={setVoiceType}
-                options={[{ id: 'female', label: 'Female' }, { id: 'male', label: 'Male' }]}
+        <VoiceOrb
+          stage={workflowStage}
+          partialTranscript={partialTranscript}
+          onStart={handleVoiceCapture}
+          onStop={stopSpeaking}
+          isBusy={isBusy}
+          speakCancelled={speakCancelled}
+        />
+
+        <TranscriptPanel messages={messages} />
+
+        <section className="glass-card p-5">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-white">Demo scenarios</h2>
+              <p className="mt-1 text-sm text-slate-400">One-click recruiter walkthroughs that exercise real API paths.</p>
+            </div>
+            <span className="w-fit rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs text-slate-300">
+              {isBusy ? 'Scenario running' : 'Ready'}
+            </span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {DEMO_SCENARIOS.map((scenario) => (
+              <ScenarioCard
+                key={scenario.id}
+                title={scenario.title}
+                description={scenario.description}
+                icon={scenario.icon}
+                tone={scenario.tone}
+                disabled={isBusy}
+                onClick={() => runScenario(scenario.id)}
               />
-            </div>
-          </section>
-          <section className="panel">
-            <h2 className="panel-title"><Shield className="w-4 h-4" /> Trust & Safety</h2>
-            <div className="space-y-2">
-              {trustIndicators.map((item) => <StateBadge key={item.label} label={item.label} value={item.value} />)}
-            </div>
-          </section>
-          <section className="panel">
-            <h2 className="panel-title"><Activity className="w-4 h-4" /> Demo Scenarios</h2>
-            <div className="grid grid-cols-1 gap-2">
-              {DEMO_SCENARIOS.map((s) => (
-                <button key={s.id} onClick={() => runScenario(s.id)} className="scenario-btn" disabled={isBusy}>{s.label}</button>
-              ))}
-            </div>
-          </section>
-        </aside>
-
-        <section className="xl:col-span-2 panel">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="panel-title"><Volume2 className="w-4 h-4" /> Realtime Voice Console</h2>
-            <div className="status-pill">{workflowStage.toUpperCase()}</div>
-          </div>
-          <div className="wave-wrap mb-3">
-            <div className={`wave ${workflowStage !== 'idle' ? 'active' : ''}`} />
-            <p className="text-sm text-gray-300">{partialTranscript || 'System ready for next patient turn.'}</p>
-          </div>
-          <div className="flex items-center gap-3 mb-4">
-            <button onClick={handleVoiceCapture} disabled={isBusy} className="mic-button">{isBusy ? 'Processing...' : 'Start Voice Turn'}</button>
-            <button onClick={stopSpeaking} className="px-4 py-2 rounded-lg bg-dark-200 text-sm">Stop / Cancel Speaking</button>
-            {speakCancelled && <span className="text-xs text-yellow-300">Speaking cancelled</span>}
-          </div>
-
-          <div className="grid grid-cols-5 gap-2 mb-4">
-            {WORKFLOW_STAGES.map((s) => (
-              <div key={s} className={`stage-chip ${workflowStage === s ? 'active' : ''}`}>{s}</div>
             ))}
           </div>
+        </section>
 
-          <div className="timeline">
+        <PipelineCard currentStage={workflowStage} />
+      </section>
+
+      <aside className="space-y-5 lg:col-span-4">
+        <VoiceSettingsPanel
+          voiceProvider={voiceProvider}
+          setVoiceProvider={setVoiceProvider}
+          personaId={personaId}
+          setPersonaId={setPersonaId}
+          language={language}
+          setLanguage={setLanguage}
+          voiceType={voiceType}
+          setVoiceType={setVoiceType}
+          llmProvider={health.llm_provider}
+          onPreview={previewPersona}
+          disabled={isBusy}
+        />
+
+        <div className="grid grid-cols-2 gap-3">
+          {latencyCards.map((card) => (
+            <LatencyCard key={card.label} {...card} />
+          ))}
+        </div>
+
+        <ResultCard result={lastResult} />
+        <GuardrailPanel result={lastResult} />
+
+        <section className="glass-card p-5">
+          <div className="mb-4 flex items-center gap-2">
+            <HeartPulse className="h-4 w-4 text-emerald-200" aria-hidden="true" />
+            <h2 className="text-sm font-semibold text-white">Conversation timeline</h2>
+          </div>
+          <div className="max-h-[360px] space-y-3 overflow-y-auto pr-1">
             {messages.length === 0 ? (
-              <div className="text-sm text-gray-400 py-8 text-center">No interactions yet. Use microphone or demo scenarios.</div>
+              <p className="rounded-2xl border border-dashed border-white/15 bg-slate-950/35 p-4 text-sm leading-6 text-slate-400">
+                Empty state: launch a voice turn or select a scenario to populate the live timeline.
+              </p>
             ) : (
-              messages.map((m, idx) => (
-                <div key={`${m.ts}-${idx}`} className={`timeline-item ${m.role}`}>
-                  <p className="text-xs opacity-70 mb-1">{m.role === 'user' ? 'Patient' : 'MedVoice AI'}</p>
-                  <p>{m.content}</p>
+              messages.map((message, index) => (
+                <div key={`${message.ts}-${index}`} className={`timeline-bubble ${message.role}`}>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] opacity-70">
+                    {message.role === 'user' ? 'Patient' : 'MedVoice AI'}
+                  </p>
+                  <p className="mt-1 text-sm leading-6">{message.content}</p>
                 </div>
               ))
             )}
             <div ref={timelineRef} />
           </div>
         </section>
-
-        <aside className="xl:col-span-1 space-y-4">
-          <section className="panel">
-            <h2 className="panel-title"><Database className="w-4 h-4" /> Latency & State</h2>
-            <div className="space-y-2">
-              <StateBadge label="Intent" value={lastResult.intent || '-'} />
-              <StateBadge label="Confidence" value={lastResult.confidence ?? '-'} />
-              <StateBadge label="STT" value={`${timings.stt_latency_ms || 0} ms`} />
-              <StateBadge label="LLM" value={`${timings.llm_latency_ms || 0} ms`} />
-              <StateBadge label="TTS" value={`${timings.tts_latency_ms || 0} ms`} />
-              <StateBadge label="Total" value={`${timings.total_latency_ms || lastResult.latency_ms || 0} ms`} />
-            </div>
-          </section>
-          <section className="panel">
-            <h2 className="panel-title"><Calendar className="w-4 h-4" /> Structured Result</h2>
-            <pre className="text-xs bg-dark-200 p-3 rounded-lg overflow-auto max-h-64">{JSON.stringify(lastResult.structured_data || {}, null, 2)}</pre>
-          </section>
-          <section className="panel">
-            <h2 className="panel-title"><AlertTriangle className="w-4 h-4 text-yellow-300" /> Emergency Guidance</h2>
-            <p className="text-sm text-gray-300">In emergency phrases, MedVoice escalates immediately and avoids diagnosis.</p>
-          </section>
-        </aside>
-      </main>
-    </div>
-  );
-}
-
-function SelectRow({ label, value, onChange, options }) {
-  return (
-    <div>
-      <label className="text-xs text-gray-400">{label}</label>
-      <select value={value} onChange={(e) => onChange(e.target.value)} className="input-select">
-        {options.map((opt) => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
-      </select>
-    </div>
+      </aside>
+    </DashboardLayout>
   );
 }
 

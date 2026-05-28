@@ -1,24 +1,14 @@
-[project]
-name = "medvoice-ai"
+[tool.poetry]
+name = "medvoice-workspace"
 version = "0.1.0"
-description = ""
-authors = [
-    {name = "Your Name", email = "you@example.com"}
-]
-readme = "README.md"
-requires-python = ">=3.11,<3.12"
+description = "Workspace wrapper for MedVoice frontend/backend split."
+packages = [{ include = "medvoice_workspace" }]
 
-dependencies = [
-    "fastapi>=0.110.0,<1.0.0",
-    "uvicorn>=0.23.0,<1.0.0",
-    "sounddevice>=0.4.6,<1.0.0",
-    "scipy>=1.11.0,<2.0.0",
-    "pyttsx3>=2.90,<3.0",
-    "sqlalchemy>=2.0.0,<3.0.0",
-    "psycopg[binary] (>=3.2.9,<4.0.0)",
-    "alembic (>=1.16.1,<2.0.0)",
-    "openai-whisper (>=20250625,<20250626)",
-    "openai (>=2.33.0,<3.0.0)",
-    "google-genai (>=1.73.1,<2.0.0)",
-    "pytest (>=8.4.2,<9.0.0)",
-]
+[tool.poetry.dependencies]
+python = ">=3.11,<3.13"
+
+[tool.poetry.scripts]
+uvicorn = "medvoice_workspace.commands:uvicorn_proxy"
+backend-dev = "medvoice_workspace.commands:backend_dev"
+backend-test = "medvoice_workspace.commands:backend_test"
+backend-migrate = "medvoice_workspace.commands:backend_migrate"
