@@ -1,4 +1,7 @@
-from fastapi import APIRouter, HTTPException, Depends
+import os
+import tempfile
+
+from fastapi import APIRouter, HTTPException, Depends, File, Form, UploadFile
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 from app.services.voice_service import VoiceService
@@ -49,24 +52,45 @@ DEMO_SCENARIOS = {
 }
 
 @router.post("/voice")
-async def handle_voice(request: VoiceRequest):
-    """Process voice input and return response"""
+async def handle_voice(
+    audio: UploadFile = File(...),
+    session_id: Optional[str] = Form(None),
+    voice: str = Form("female"),
+    voice_type: Optional[str] = Form(None),
+    voice_provider: Optional[str] = Form(None),
+    persona_id: Optional[str] = Form(None),
+    language: Optional[str] = Form(None),
+):
+    """Process uploaded browser microphone audio and return response."""
+    audio_path = None
     try:
+        suffix = _audio_suffix(audio.filename, audio.content_type)
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as temp_file:
+            audio_path = temp_file.name
+            temp_file.write(await audio.read())
+
         # Run voice processing in thread pool to avoid blocking
         import asyncio
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
             None, 
-            voice_service.process_voice,
-            request.session_id,
-            request.voice,
-            request.voice_provider,
-            request.persona_id,
-            request.language,
+            voice_service.process_uploaded_voice,
+            audio_path,
+            session_id,
+            voice_type or voice,
+            voice_provider,
+            persona_id,
+            language,
         )
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        try:
+            if audio_path:
+                os.unlink(audio_path)
+        except Exception:
+            pass
 
 
 @router.post("/voice/stream")
@@ -75,9 +99,34 @@ async def handle_voice_stream(request: VoiceRequest):
     Streaming-ready endpoint surface for future SSE/WebSocket rollout.
     Currently returns the same contract so frontend can stay streaming-ready.
     """
-    result = await handle_voice(request)
+    import asyncio
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        None,
+        voice_service.process_voice,
+        request.session_id,
+        request.voice,
+        request.voice_provider,
+        request.persona_id,
+        request.language,
+    )
     result["streaming_ready"] = True
     return result
+
+
+def _audio_suffix(filename: Optional[str], content_type: Optional[str]) -> str:
+    if filename:
+        suffix = os.path.splitext(filename)[1]
+        if suffix:
+            return suffix
+    return {
+        "audio/webm": ".webm",
+        "audio/mp4": ".mp4",
+        "audio/mpeg": ".mp3",
+        "audio/ogg": ".ogg",
+        "audio/wav": ".wav",
+        "audio/x-wav": ".wav",
+    }.get(content_type or "", ".webm")
 
 
 @router.post("/voice/demo")
@@ -176,6 +225,7 @@ async def health_check():
     """Health check endpoint"""
     try:
         llm_status = llm_service.provider_status()
+        sarvam_configured = bool(settings.sarvam_api_key and settings.sarvam_stt_endpoint and settings.sarvam_tts_endpoint)
         return {
             "status": "healthy",
             "ollama_connected": llm_status["active"] == "ollama" and llm_status["available"],
@@ -183,6 +233,17 @@ async def health_check():
             "database_connected": check_db_connection(),
             "provider_requested": settings.voice_provider,
             "provider_active": get_voice_provider().name,
+            "provider": "sarvam" if sarvam_configured else "browser_fallback",
+            "voice_service_configured": _voice_service_configured(),
+            "sarvam_configured": sarvam_configured,
+            "sarvamConfigured": sarvam_configured,
+            "sarvam_missing": [
+                name for name, value in [
+                    ("SARVAM_API_KEY", settings.sarvam_api_key),
+                    ("SARVAM_STT_ENDPOINT", settings.sarvam_stt_endpoint),
+                    ("SARVAM_TTS_ENDPOINT", settings.sarvam_tts_endpoint),
+                ] if not value
+            ],
             "services": {
                 "voice_pipeline": True,
                 "intent_service": True,
@@ -195,3 +256,13 @@ async def health_check():
             "status": "unhealthy",
             "error": str(e)
         }
+
+
+def _voice_service_configured() -> bool:
+    if settings.voice_provider == "sarvam":
+        return bool(settings.sarvam_api_key and settings.sarvam_stt_endpoint and settings.sarvam_tts_endpoint)
+    if settings.voice_provider == "local":
+        return bool(settings.enable_local_stt and settings.enable_local_tts)
+    if settings.voice_provider == "openai":
+        return bool(settings.openai_api_key)
+    return False

@@ -86,6 +86,14 @@ def create_session(session_id):
         "patient_name": None,
         "selected_doctor": None,
         "last_doctor_list": [],
+        "recording_consent": False,
+        "selected_receptionist_id": None,
+        "hospital_id": None,
+        "current_intent": None,
+        "slots": {},
+        "missing_slots": [],
+        "last_assistant_question": None,
+        "workflow_state": "idle",
         "created_at": None
     }
     sessions[session_id] = session_data

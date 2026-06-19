@@ -16,7 +16,7 @@ def test_health_endpoint_ok():
 
 
 def test_voice_endpoint_accepts_voice_alias(monkeypatch):
-    def fake_process_voice(session_id, voice, preferred_provider=None, persona_id=None, language=None):
+    def fake_process_uploaded_voice(audio_path, session_id, voice, preferred_provider=None, persona_id=None, language=None):
         return {
             "session_id": session_id or "s1",
             "status": "success",
@@ -32,8 +32,12 @@ def test_voice_endpoint_accepts_voice_alias(monkeypatch):
             "language": language or "en-IN",
         }
 
-    monkeypatch.setattr(voice_service, "process_voice", fake_process_voice)
-    response = client.post("/api/v1/voice", json={"session_id": "abc", "voice_type": "female"})
+    monkeypatch.setattr(voice_service, "process_uploaded_voice", fake_process_uploaded_voice)
+    response = client.post(
+        "/api/v1/voice",
+        data={"session_id": "abc", "voice_type": "female"},
+        files={"audio": ("voice-turn.webm", b"audio-bytes", "audio/webm")},
+    )
     assert response.status_code == 200
     assert response.json()["voice_used"] == "female"
 

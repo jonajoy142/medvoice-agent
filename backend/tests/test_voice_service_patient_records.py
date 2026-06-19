@@ -105,9 +105,9 @@ def test_appointment_and_availability_do_not_need_llm(monkeypatch):
     assert "Medical history" not in availability["response"]
 
 
-def test_static_faq_does_not_need_llm(monkeypatch):
+def test_faq_without_kb_returns_content_gap_without_llm(monkeypatch):
     def fail_if_llm_called(*args, **kwargs):
-        raise AssertionError("static FAQ flow should not call the LLM")
+        raise AssertionError("FAQ content-gap flow should not call the LLM")
 
     monkeypatch.setattr("app.services.voice_service.llm_service.generate_reply", fail_if_llm_called)
     monkeypatch.setattr("app.services.voice_service.get_voice_provider", lambda preferred=None: SilentProvider())
@@ -118,8 +118,9 @@ def test_static_faq_does_not_need_llm(monkeypatch):
     )
 
     assert result["intent"] == "faq"
-    assert result["action"] == "faq_answer"
-    assert result["structured_data"] == {"source": "static_faq", "topic": "visiting_hours"}
+    assert result["action"] == "faq_content_gap"
+    assert result["structured_data"]["source"] == "knowledge_base"
+    assert result["structured_data"]["content_gap"] is True
 
 
 def test_generic_unsupported_query_returns_safe_fallback(monkeypatch):

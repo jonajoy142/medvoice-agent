@@ -1,7 +1,6 @@
 from typing import Any, Dict, List, Optional
 
 from app.core.config import settings
-from app.core.logger import conversation_logger
 from app.llm.base import LLMRequest
 from app.llm.deterministic_provider import DeterministicLLMProvider
 from app.llm.provider_factory import get_llm_provider
@@ -48,29 +47,10 @@ class LLMService:
             reply = provider.generate(request).strip()
             if not reply:
                 raise RuntimeError(f"{provider.name} returned an empty response.")
-            conversation_logger.log_interaction(
-                session_id=session_id,
-                user_text=user_text,
-                ai_response=reply,
-                metadata={"context": context, "llm_provider": provider.name, "fallback_used": False},
-            )
             return reply
         except Exception as exc:
             fallback = DeterministicLLMProvider()
             reply = fallback.generate(request)
-            conversation_logger.log_interaction(
-                session_id=session_id,
-                user_text=user_text,
-                ai_response=reply,
-                metadata={
-                    "context": context,
-                    "error": True,
-                    "exception": str(exc),
-                    "llm_provider": getattr(provider, "name", self.provider_name),
-                    "fallback_provider": fallback.name,
-                    "fallback_used": True,
-                },
-            )
             return reply
 
     def _build_prompt(

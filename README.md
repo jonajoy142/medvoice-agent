@@ -1,229 +1,227 @@
 # MedVoice AI
 
-MedVoice is a FastAPI + React hospital voice receptionist demo with deterministic healthcare guardrails, optional LLM phrasing providers, voice provider switching, and Postgres-ready persistence.
+MedVoice is a multi-tenant hospital/clinic AI voice-agent SaaS foundation for receptionist operations: overview analytics, agents, calls, reports, knowledge base, contacts, settings, billing views, and platform administration.
 
-## Repository Split
+MedVoice is not a diagnostic tool. The schema tracks business and operations data only: calls, leads, appointments, outcomes, revenue influence, and safe escalation metadata. Do not store diagnosis, prescriptions, clinical history, or medical reports.
 
-```text
-medVoice-ai/
-  backend/          FastAPI app, tests, Alembic, Poetry, backend deployment config
-  frontend/         React/Vite app
-  docker-compose.yml
-  README.md
+## Supabase-First Setup
+
+For real login and dashboard data, point the backend at your Supabase project database. Docker Postgres is only a local fallback if you intentionally set `DATABASE_URL` to localhost.
+
+```env
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_ANON_KEY=<anon key>
+SUPABASE_SERVICE_ROLE_KEY=<service role key, backend only>
+DATABASE_URL=postgresql://postgres:<password>@<host>:5432/postgres
+USE_DATABASE=true
+JWT_SECRET=<long random value>
+REDIS_URL=redis://localhost:6379/0
 ```
 
-Deployment split:
-- Frontend: Vercel
-- Backend: Render, Railway, Fly.io, or any container host
-- Database: Docker Postgres locally, Supabase Postgres later
+Correct split Postgres env names are preferred:
 
-## Architecture
-
-```text
-Frontend UI
-  -> FastAPI API
-    -> VoiceService
-      -> Intent + healthcare guardrails
-      -> deterministic workflows for records, appointments, availability, emergency handling
-      -> optional LLM phrasing for generic unsupported turns only
-    -> Repository factory
-      -> mock repositories by default
-      -> SQLAlchemy repositories when USE_DATABASE=true
-    -> Docker Postgres / Supabase-compatible Postgres
+```env
+SUPABASE_HOST=
+SUPABASE_PORT=5432
+SUPABASE_DB=postgres
+SUPABASE_USER=postgres
+SUPABASE_PASSWORD=
 ```
 
-Safety rules:
-- Patient chart and record requests require verified patient ID or phone number plus DOB.
-- Patient lookup, appointments, doctor availability, emergency escalation, and verified-data FAQ flows do not require an LLM.
-- LLM providers must not invent patient, doctor, appointment, or medical facts.
-- Missing hosted API keys or unavailable Ollama fall back to deterministic responses.
+Old compatibility names are still accepted if already present:
 
-## Local Development
+```env
+SUPBASE_PORT=5432
+SUPBASE_PSWD=
+```
 
-### 1. Start Postgres from the root
+Never put real secret values in git.
+
+## Local Backend
 
 ```bash
-docker compose up -d postgres
-```
+cd /Users/jonajoy/Projects/medVoice-ai
+cp .env.example backend/.env
+# edit backend/.env with Supabase URL, keys, DATABASE_URL, Redis, and provider keys
 
-### 2. Backend
-
-```bash
 cd backend
 poetry install
-cp .env.example .env
 poetry run alembic upgrade head
 poetry run uvicorn app.main:app --reload
 ```
 
-Backend runs at `http://localhost:8000`.
+Backend URL:
 
-Root convenience commands are also available after `poetry install` from the repo root:
-
-```bash
-poetry run backend-dev
-poetry run backend-test
-poetry run backend-migrate
+```text
+http://localhost:8000
 ```
 
-### 3. Frontend
+## Local Frontend
 
 ```bash
-cd frontend
+cd /Users/jonajoy/Projects/medVoice-ai/frontend
+cp .env.example .env
 npm install
 npm run dev
 ```
 
-Frontend runs at `http://localhost:3000`.
-
-## LLM Providers
-
-Configure the backend with:
+Set:
 
 ```env
-LLM_PROVIDER=deterministic|ollama|openai|groq|openrouter
-LLM_FALLBACK_PROVIDER=deterministic
-LLM_ENABLE_FALLBACK=true
-LLM_TIMEOUT_SECONDS=8
+VITE_API_URL=http://localhost:8000
 ```
 
-Default production-safe mode:
+## Register/Login Flow
+
+`/register` is real, not local-only:
+
+1. Frontend posts to `POST /auth/register`.
+2. Backend creates or finds the Supabase Auth user using the backend-only service role key.
+3. Backend creates a hospital workspace.
+4. Backend creates a `staff_users` row mapped to the Supabase user id with role `hospital_admin`.
+5. Backend returns user role, hospital, permissions, redirect target, and a session when password login succeeds.
+6. Frontend redirects hospital users to `/overview` and platform admins to `/admin`.
+
+`/login` posts to `POST /auth/login`, then the frontend fetches `/auth/me` through the stored bearer token.
+
+## First Super Admin
+
+Use env vars only. Do not hardcode passwords in source.
 
 ```env
-LLM_PROVIDER=deterministic
+SEED_SUPER_ADMIN_EMAIL=owner@medvoice.ai
+SEED_SUPER_ADMIN_PASSWORD=<temporary password from your local env or secret manager>
+SEED_SUPER_ADMIN_NAME=MedVoice Admin
 ```
 
-Local Ollama mode:
-
-```env
-LLM_PROVIDER=ollama
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=llama3
-```
-
-Hosted provider mode:
-
-```env
-LLM_PROVIDER=openai
-OPENAI_API_KEY=...
-OPENAI_MODEL=gpt-4o-mini
-```
-
-Groq and OpenRouter are also supported through OpenAI-compatible chat APIs:
-
-```env
-LLM_PROVIDER=groq
-GROQ_API_KEY=...
-GROQ_MODEL=llama-3.1-8b-instant
-
-LLM_PROVIDER=openrouter
-OPENROUTER_API_KEY=...
-OPENROUTER_MODEL=meta-llama/llama-3.1-8b-instruct
-```
-
-API keys are backend-only environment variables. Do not expose them to the frontend.
-
-## Database
-
-Local Docker Postgres:
-
-```bash
-docker compose up -d postgres
-cd backend
-USE_DATABASE=true poetry run alembic upgrade head
-poetry run python scripts/seed_demo_data.py
-```
-
-Supabase migration path:
-- Create a Supabase Postgres database.
-- Set backend `DATABASE_URL` to the Supabase connection string.
-- Run `cd backend && poetry run alembic upgrade head`.
-- Keep repository and service code unchanged.
-
-## Docker Backend
-
-Build and run the FastAPI container from the repo root:
-
-```bash
-docker build -t medvoice-backend ./backend
-docker run --env-file backend/.env.example -p 8000:8000 medvoice-backend
-```
-
-For Render/Fly.io:
-- Root/build context: `backend`
-- Dockerfile: `backend/Dockerfile`
-- Start command if not using Docker: `poetry run uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-- Set `LLM_PROVIDER=deterministic` unless a hosted provider API key is configured.
-- Set `DATABASE_URL` for managed Postgres or Supabase.
-
-For Railway:
-- Service Root Directory: `backend`
-- Builder: Dockerfile, using `backend/Dockerfile`
-- Railway config: `backend/railway.json`
-- Start command: `poetry run uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-- Healthcheck path: `/api/v1/health`
-- The Railway Docker image defaults to lightweight text/demo mode:
-  - `ENABLE_WHISPER=false`
-  - `ENABLE_LOCAL_STT=false`
-  - `ENABLE_LOCAL_TTS=false`
-  - This avoids GPU PyTorch, ffmpeg, and local audio dependencies on low-resource hosts.
-- Required environment variables:
-  - `PORT` is provided by Railway
-  - `ENVIRONMENT=production`
-  - `LLM_PROVIDER=deterministic`
-  - `LLM_FALLBACK_PROVIDER=deterministic`
-  - `LLM_ENABLE_FALLBACK=true`
-  - `CORS_ORIGINS=https://your-vercel-app.vercel.app`
-- Optional database variables:
-  - `USE_DATABASE=true`
-  - `DATABASE_URL=postgresql+psycopg://...`
-- Optional hosted LLM variables:
-  - `OPENAI_API_KEY`, `OPENAI_MODEL`
-  - `GROQ_API_KEY`, `GROQ_MODEL`
-  - `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`
-- Optional CPU Whisper image mode:
-  - Build with `INSTALL_WHISPER=true`
-  - Set `ENABLE_WHISPER=true`
-  - Set `ENABLE_LOCAL_STT=true`
-  - This installs CPU-only PyTorch from `https://download.pytorch.org/whl/cpu`.
-  - Railway does not provide GPU instances, so do not use CUDA/GPU PyTorch.
-
-For Vercel:
-- Preferred project root: `frontend`
-- Build command: `npm run build`
-- Output directory: `dist`
-- If Vercel is connected at the repository root, the root `vercel.json` delegates install/build/output to `frontend/`.
-- If Vercel tries to build `backend/`, change the Vercel project Root Directory to `frontend` in Settings -> Build & Development Settings.
-- Configure API base URL for the deployed backend when moving beyond the local Vite proxy.
-
-## Validation
+Run:
 
 ```bash
 cd backend
-poetry install
+poetry run python scripts/create_super_admin.py
+```
+
+The script creates the Supabase Auth user if missing and upserts an active `staff_users` row with role `super_admin` and no hospital id.
+
+## Optional Demo Seed
+
+```env
+SEED_HOSPITAL_ADMIN_EMAIL=admin@examplehospital.com
+SEED_STAFF_EMAIL=staff@examplehospital.com
+SEED_DEFAULT_PASSWORD=<temporary password>
+```
+
+Then run:
+
+```bash
+cd backend
+poetry run python scripts/seed_saas_dev.py
+```
+
+The demo seed creates a demo hospital, approved staff mappings, two agents, sample calls, summaries, appointment outcomes, revenue estimates, and KB metadata.
+
+## Migrations
+
+```bash
+cd backend
 poetry run alembic upgrade head
+```
+
+Current migration chain includes:
+
+- `20260528_01_initial_schema.py`
+- `20260618_01_full_medvoice_operations.py`
+- `20260618_02_saas_foundation.py`
+- `20260618_03_onboarding_requests.py`
+
+## Role Redirects
+
+- `super_admin` -> `/admin`
+- `hospital_admin` -> `/overview`
+- `staff` -> `/overview` with limited navigation/actions
+
+## Auth/API Endpoints
+
+Both clean and versioned auth paths are available:
+
+```text
+POST /auth/register
+POST /auth/login
+POST /auth/logout
+GET  /auth/me
+POST /auth/invite-staff
+```
+
+Versioned aliases also exist under `/api/v1/auth/...`.
+
+## Required Production Env Vars
+
+```env
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+DATABASE_URL=postgresql://postgres:<password>@<host>:5432/postgres
+USE_DATABASE=true
+JWT_SECRET=
+REDIS_URL=
+SARVAM_API_KEY=
+SARVAM_STT_ENDPOINT=
+SARVAM_TTS_ENDPOINT=
+LLM_PROVIDER=openai
+OPENAI_API_KEY=
+TELEPHONY_PROVIDER=exotel
+TELEPHONY_ACCOUNT_SID=
+TELEPHONY_AUTH_TOKEN=
+TELEPHONY_PHONE_NUMBER=
+```
+
+## Tests
+
+```bash
+cd backend
 poetry run pytest -q
+poetry run python scripts/evaluate_workflows.py
 
 cd ../frontend
 npm run build
-
-cd ..
-docker compose config
 ```
 
-## API Endpoints
+Supabase integration tests are gated:
 
-- `POST /api/v1/voice`
-- `POST /api/v1/voice/stream`
-- `POST /api/v1/voice/demo`
-- `GET /api/v1/availability`
-- `POST /api/v1/appointment`
-- `GET /api/v1/appointments`
-- `GET /api/v1/patient/{opid}`
-- `GET /api/v1/health`
+```env
+RUN_SUPABASE_INTEGRATION_TESTS=true
+```
 
-## Limitations
+## Render Deployment With Supabase/Postgres
 
-- `/voice/stream` is a streaming-ready response contract, not full SSE audio streaming yet.
-- Local STT/TTS still depends on the host audio stack.
-- Strong production auth/RBAC and tenant isolation remain future work.
+Backend service:
+
+- Root directory: `backend`
+- Build: `poetry install`
+- Start: `poetry run uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- Set all production env vars in Render, never in source.
+- Run migrations from a Render shell or CI job: `poetry run alembic upgrade head`.
+
+Frontend service:
+
+- Root directory: `frontend`
+- Build: `npm install && npm run build`
+- Publish directory: `dist`
+- Set `VITE_API_URL=https://<backend-host>`.
+
+Recommended production layout:
+
+```text
+Frontend: Vercel or Render Static Site
+Backend: Render Web Service
+Database: Supabase Postgres
+Auth: Supabase Auth
+Storage: Supabase Storage
+```
+
+## Known Remaining Integration Work
+
+- Verify Sarvam STT/TTS endpoint payloads with real credentials.
+- Verify Exotel outbound/inbound/media webhook contracts with real credentials.
+- Connect production billing provider if required.
+- Implement full document text extraction, chunking, and embeddings after document upload.
