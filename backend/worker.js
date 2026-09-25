@@ -33,6 +33,7 @@ export default {
           service: 'medvoice-backend-worker',
           runtime: 'cloudflare-worker',
           fishAudioReady: !!fishKey,
+          fishKey: !!fishKey,
           voiceId: env.FISH_AUDIO_VOICE_ID || '0429f2b252464b88b2ab2128f084290c',
           model: 's2.1-pro-free',
         }),

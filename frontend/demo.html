@@ -971,7 +971,7 @@ async function checkServer() {
     const r = await fetch(`${SERVER}/health`, { signal: AbortSignal.timeout(1500) });
     const d = await r.json();
     serverOnline = true;
-    if (!d.fishKey) {
+    if (!d.fishKey && !d.fishAudioReady) {
       showToast('Fish Audio key not detected in server environment');
     }
     return d;
