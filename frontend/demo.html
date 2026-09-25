@@ -1,0 +1,1573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MedVoice AI — Voice Intelligence Platform</title>
+  <meta name="description" content="MedVoice AI: Autonomous real-time voice agents for healthcare and hospitality, powered by Fish Audio." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      color-scheme: light;
+      --bg: #ffffff;
+      --subtle: #fafafa;
+      --panel: #ffffff;
+      --ink: #111111;
+      --muted: #7a7a7a;
+      --line: #eaeaea;
+      --line-strong: #d8d8d8;
+      --danger: #dc2626;
+      --danger-bg: #fef2f2;
+      --danger-line: #fecaca;
+      --green: #16a34a;
+      --green-bg: #f0fdf4;
+      --green-line: #bbf7d0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, input, textarea, select { font: inherit; outline: none; }
+    button { cursor: pointer; }
+    button:disabled { cursor: not-allowed; opacity: 0.45; }
+
+    .container {
+      width: 100%;
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* HEADER */
+    header {
+      background: #ffffff;
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 68px;
+    }
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: inherit;
+    }
+    .mv-logo {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 3px;
+      width: 32px;
+      height: 32px;
+      padding: 6px;
+      border-radius: 8px;
+      border: 1px solid var(--ink);
+      background: #ffffff;
+    }
+    .mv-logo span {
+      background: var(--ink);
+      border-radius: 2px;
+    }
+    .brand-title {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .brand-badge {
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 2px 7px;
+      border-radius: 999px;
+      border: 1px solid var(--line-strong);
+      color: var(--muted);
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .ghost-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 16px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 500;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .ghost-pill:hover {
+      border-color: var(--ink);
+    }
+    .dark-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 18px;
+      border-radius: 999px;
+      border: 1px solid var(--ink);
+      background: var(--ink);
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 500;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .dark-pill:hover {
+      background: #000000;
+      border-color: #000000;
+    }
+
+    /* MAIN */
+    main { flex: 1; padding: 48px 0 64px; }
+
+    /* HERO */
+    .hero {
+      text-align: center;
+      max-width: 680px;
+      margin: 0 auto 40px;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: var(--subtle);
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+    .eyebrow-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+    h1 {
+      font-size: 44px;
+      font-weight: 700;
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+      color: var(--ink);
+      margin-bottom: 14px;
+    }
+    .hero p {
+      font-size: 16px;
+      line-height: 1.55;
+      color: var(--muted);
+      font-weight: 400;
+    }
+
+    /* MODE TOGGLE */
+    .mode-switch-wrap {
+      display: flex;
+      justify-content: center;
+      margin: 28px 0 36px;
+    }
+    .mode-switch {
+      display: inline-flex;
+      padding: 4px;
+      border-radius: 999px;
+      background: var(--subtle);
+      border: 1px solid var(--line);
+    }
+    .mode-btn {
+      padding: 7px 20px;
+      border-radius: 999px;
+      border: none;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      transition: all 0.2s;
+    }
+    .mode-btn.active {
+      background: var(--ink);
+      color: #ffffff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    /* GRID */
+    .app-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    @media (max-width: 860px) {
+      .app-grid { grid-template-columns: 1fr; }
+      h1 { font-size: 34px; }
+    }
+
+    /* CARDS */
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 28px;
+    }
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    .card-head-title {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* CALL BANNER */
+    .call-banner {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      background: var(--green-bg);
+      border: 1px solid var(--green-line);
+      color: var(--green);
+    }
+    .call-live-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    /* AGENT PROFILE */
+    .agent-profile {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .agent-avatar {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      border: 1px solid var(--line);
+      background: var(--subtle);
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 14px;
+      transition: all 0.3s;
+    }
+    .agent-avatar.speaking {
+      border-color: var(--ink);
+      box-shadow: 0 0 0 6px rgba(17,17,17,0.06);
+    }
+    .agent-avatar.listening {
+      border-color: var(--green);
+      box-shadow: 0 0 0 6px var(--green-bg);
+    }
+    .agent-name {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+    }
+    .agent-role {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* STATUS PILL */
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 500;
+      margin-top: 10px;
+      border: 1px solid var(--line);
+      background: var(--subtle);
+      color: var(--muted);
+      transition: all 0.2s;
+    }
+    .status-pill.listen {
+      border-color: var(--green-line);
+      background: var(--green-bg);
+      color: var(--green);
+    }
+    .status-pill.speak {
+      border-color: var(--line-strong);
+      background: var(--ink);
+      color: #ffffff;
+    }
+    .status-pill.think {
+      border-color: #fde68a;
+      background: #fefce8;
+      color: #b45309;
+    }
+    .status-indicator-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    /* WAVEFORM */
+    .waveform-wrap {
+      width: 100%;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      margin: 16px 0;
+    }
+    .waveform-bar {
+      width: 3px;
+      border-radius: 2px;
+      background: var(--ink);
+      opacity: 0.2;
+      transition: height 0.1s ease, opacity 0.1s ease;
+      min-height: 4px;
+    }
+    .waveform-bar.active {
+      opacity: 0.9;
+    }
+
+    /* TRANSCRIPT */
+    .transcript-box {
+      width: 100%;
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--subtle);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 16px;
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+    .transcript-box.active {
+      color: var(--ink);
+      font-weight: 500;
+    }
+
+    /* CALL ACTION BUTTONS */
+    .call-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+    }
+    .btn-call-primary {
+      width: 100%;
+      max-width: 280px;
+      height: 48px;
+      border-radius: 999px;
+      border: none;
+      background: var(--ink);
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      transition: all 0.2s;
+    }
+    .btn-call-primary:hover {
+      background: #000000;
+    }
+    .btn-call-primary.in-call {
+      background: var(--danger);
+      color: #ffffff;
+    }
+    .btn-call-primary.in-call:hover {
+      background: #b91c1c;
+    }
+    .btn-icon-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .call-sub-row {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+      max-width: 280px;
+    }
+    .sub-btn {
+      flex: 1;
+      height: 38px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+    .sub-btn:hover {
+      border-color: var(--line-strong);
+      background: var(--subtle);
+    }
+    .sub-btn.active {
+      border-color: var(--danger-line);
+      background: var(--danger-bg);
+      color: var(--danger);
+    }
+    .call-hint-text {
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+      margin-top: 4px;
+    }
+
+    /* RIGHT COLUMN: PROMPTS & CONVERSATION */
+    .side-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* PROMPT CHIPS */
+    .prompts-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .prompt-chip {
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--ink);
+      font-size: 13px;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.2s;
+    }
+    .prompt-chip:hover {
+      border-color: var(--ink);
+      background: var(--subtle);
+    }
+    .prompt-arrow {
+      color: var(--muted);
+      transition: transform 0.2s;
+    }
+    .prompt-chip:hover .prompt-arrow {
+      transform: translateX(2px);
+      color: var(--ink);
+    }
+
+    /* CONVERSATION HISTORY */
+    .conv-box {
+      height: 320px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding-right: 4px;
+    }
+    .msg-item {
+      display: flex;
+      flex-direction: column;
+      max-width: 85%;
+    }
+    .msg-item.ai {
+      align-self: flex-start;
+    }
+    .msg-item.user {
+      align-self: flex-end;
+      align-items: flex-end;
+    }
+    .msg-bubble {
+      padding: 10px 14px;
+      border-radius: 14px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .msg-item.ai .msg-bubble {
+      background: var(--subtle);
+      border: 1px solid var(--line);
+      color: var(--ink);
+      border-top-left-radius: 4px;
+    }
+    .msg-item.user .msg-bubble {
+      background: var(--ink);
+      color: #ffffff;
+      border-top-right-radius: 4px;
+    }
+    .msg-meta {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* EMPTY CONV */
+    .empty-conv {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+      gap: 8px;
+    }
+
+    /* METRICS STRIP */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .metric-box {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--subtle);
+      padding: 10px 12px;
+    }
+    .metric-val {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--ink);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .metric-lbl {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* MODAL */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(4px);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .modal-backdrop.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .modal-card {
+      width: 100%;
+      max-width: 440px;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 32px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+      position: relative;
+    }
+    .modal-close {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 6px;
+    }
+    .modal-close:hover { color: var(--ink); }
+    .form-field { margin-bottom: 14px; }
+    .form-field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      margin-bottom: 5px;
+    }
+    .form-field input, .form-field textarea {
+      width: 100%;
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--ink);
+      font-size: 13px;
+    }
+    .form-field input:focus, .form-field textarea:focus {
+      border-color: var(--ink);
+    }
+
+    /* FOOTER */
+    footer {
+      border-top: 1px solid var(--line);
+      background: #ffffff;
+      padding: 24px 0;
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    footer a { color: var(--ink); text-decoration: none; font-weight: 500; }
+    footer a:hover { text-decoration: underline; }
+
+    /* TOAST */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--ink);
+      color: #ffffff;
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 500;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.25s;
+      z-index: 300;
+      pointer-events: none;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="container header-inner">
+    <a href="#" class="brand-wrap">
+      <div class="mv-logo">
+        <span></span><span></span><span></span><span></span>
+      </div>
+      <div>
+        <div class="brand-title">
+          MedVoice AI
+          <span class="brand-badge">BETA</span>
+        </div>
+      </div>
+    </a>
+
+    <div class="header-actions">
+      <a href="https://github.com/jonajoy142/medvoice-agent" target="_blank" class="ghost-pill">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+        GitHub
+      </a>
+      <button class="dark-pill" onclick="openModal()">
+        Request Early Access
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- MAIN -->
+<main>
+  <div class="container">
+    <!-- HERO -->
+    <section class="hero">
+      <div class="eyebrow">
+        <span class="eyebrow-dot"></span>
+        Voice Synthesis via Fish Audio (modal-1)
+      </div>
+      <h1>Conversational Voice<br />for Healthcare & Hospitality</h1>
+      <p>Human-sounding voice agents that handle patient appointments, triage inquiries, and customer requests in real time with continuous hands-free dialogue.</p>
+
+      <!-- MODE TOGGLE -->
+      <div class="mode-switch-wrap">
+        <div class="mode-switch">
+          <button class="mode-btn active" id="modeHospital" onclick="switchMode('hospital')">Hospital Reception</button>
+          <button class="mode-btn" id="modeRestaurant" onclick="switchMode('restaurant')">Restaurant Service</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- WORKSPACE GRID -->
+    <div class="app-grid">
+
+      <!-- LEFT: AGENT CALL PANEL -->
+      <div class="card">
+        <div class="card-head">
+          <div class="card-head-title">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>
+            Active Voice Agent
+          </div>
+          <div class="call-banner" id="callBanner" style="display:none;">
+            <span class="call-live-dot"></span>
+            <span id="callBannerText">CONNECTED · 0:00</span>
+          </div>
+        </div>
+
+        <div class="agent-profile">
+          <div class="agent-avatar" id="avatarRing">
+            <span id="avatarInitials">DP</span>
+          </div>
+          <div class="agent-name" id="aiName">Dr. Priya</div>
+          <div class="agent-role" id="aiRole">Hospital Receptionist</div>
+          <div class="status-pill" id="statusPill">
+            <span class="status-indicator-dot"></span>
+            <span id="statusText">Ready to Call</span>
+          </div>
+        </div>
+
+        <!-- WAVEFORM -->
+        <div class="waveform-wrap" id="waveform"></div>
+
+        <!-- TRANSCRIPT -->
+        <div class="transcript-box" id="transcriptBox">
+          Tap "Start Voice Call" to initiate a continuous phone-style conversation.
+        </div>
+
+        <!-- CALL CONTROLS -->
+        <div class="call-actions">
+          <button class="btn-call-primary" id="callPrimaryBtn" onclick="toggleCall()">
+            <span class="btn-icon-wrap" id="callBtnIcon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+            </span>
+            <span id="callBtnText">Start Voice Call</span>
+          </button>
+
+          <div class="call-sub-row" id="callSubControls" style="display:none;">
+            <button class="sub-btn" id="muteBtn" onclick="toggleMute()" title="Mute/Unmute microphone">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="muteSvg"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>
+              <span id="muteText">Mute</span>
+            </button>
+            <button class="sub-btn" id="interruptBtn" onclick="interruptAI()" title="Interrupt assistant">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg>
+              <span>Interrupt</span>
+            </button>
+          </div>
+
+          <div class="call-hint-text" id="callHint">
+            Hands-free continuous dialogue. You speak, AI responds, no repeated clicks needed.
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: SUGGESTED INQUIRIES & CONVERSATION -->
+      <div class="side-stack">
+        <!-- SUGGESTED QUESTIONS -->
+        <div class="card">
+          <div class="card-head">
+            <div class="card-head-title">Suggested Inquiries</div>
+          </div>
+          <div class="prompts-list" id="quickActions"></div>
+
+          <!-- METRICS -->
+          <div class="metrics-grid">
+            <div class="metric-box">
+              <div class="metric-val" id="mTurns">0</div>
+              <div class="metric-lbl">Turns</div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-val" id="mLatency">—</div>
+              <div class="metric-lbl">Latency</div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-val" id="mTime">0:00</div>
+              <div class="metric-lbl">Duration</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CONVERSATION LOG -->
+        <div class="card">
+          <div class="card-head">
+            <div class="card-head-title">Transcript Log</div>
+            <button onclick="clearConv()" style="background:transparent;border:none;color:var(--muted);font-size:12px;cursor:pointer">Clear</button>
+          </div>
+          <div class="conv-box" id="convScroll">
+            <div class="empty-conv" id="emptyConv">
+              <div>Your ongoing conversation will appear here</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<!-- FOOTER -->
+<footer>
+  <div class="container">
+    <p>MedVoice AI · Built by Jona Joy · Real-time voice intelligence for clinical & hospitality workflows</p>
+    <p style="margin-top:6px;font-size:11px">Voice generated by <a href="https://fish.audio" target="_blank">Fish Audio</a> (s2.1-pro-free) · Speech recognition via Web Speech API</p>
+  </div>
+</footer>
+
+<!-- MODAL: EARLY ACCESS -->
+<div class="modal-backdrop" id="earlyModal">
+  <div class="modal-card">
+    <button class="modal-close" onclick="closeModal()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    </button>
+    <div id="modalForm">
+      <h3 style="font-size:20px;font-weight:700;letter-spacing:-0.03em;color:var(--ink);margin-bottom:6px">Request Early Access</h3>
+      <p style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:20px">Deploy MedVoice AI for your hospital or business. We'll reach out directly.</p>
+      
+      <div class="form-field">
+        <label>Full Name</label>
+        <input type="text" id="signupName" placeholder="Dr. Sarah Jenkins" />
+      </div>
+      <div class="form-field">
+        <label>Work Email</label>
+        <input type="email" id="signupEmail" placeholder="s.jenkins@hospital.org" />
+      </div>
+      <div class="form-field">
+        <label>Primary Use Case</label>
+        <textarea id="signupUsecase" rows="2" placeholder="Automating outpatient appointment scheduling"></textarea>
+      </div>
+
+      <button class="dark-pill" id="signupSubmitBtn" onclick="submitSignup()" style="width:100%;justify-content:center;height:44px;margin-top:6px">
+        Submit Request
+      </button>
+    </div>
+
+    <div id="signupSuccess" style="display:none;text-align:center;padding:20px 0;">
+      <h4 style="font-size:18px;font-weight:600;margin-bottom:8px">Request Received</h4>
+      <p style="font-size:13px;color:var(--muted)">We have recorded your details and will contact you shortly.</p>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── Config & State ─────────────────────────────────────
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('backend')) {
+  localStorage.setItem('mv_backend_url', urlParams.get('backend').replace(/\/$/, ''));
+}
+const savedBackend = localStorage.getItem('mv_backend_url') || '';
+const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const isCloudflare = window.location.hostname.endsWith('.workers.dev') || window.location.hostname.endsWith('.pages.dev');
+
+// If local dev server -> port 3333; if hosted on Cloudflare -> same-origin; if hosted on Vercel -> use configured backend
+const SERVER = isLocal
+  ? (window.location.port === '3333' ? '' : 'http://localhost:3333')
+  : (isCloudflare ? '' : (savedBackend || ''));
+let serverOnline = false;
+
+let mode = 'hospital';
+let isCallActive = false;
+let isSpeaking = false;
+let isThinking = false;
+let isMuted = false;
+let callDuration = 0;
+let callTimer = null;
+let recognition = null;
+let silenceTimer = null;
+let currentTurnTranscript = '';
+let currentAudio = null;
+let sessionStart = Date.now();
+let turns = 0;
+let totalLatency = 0;
+let callCount = parseInt(localStorage.getItem('mv_calls') || '0');
+
+// ─── Mode Definitions ───────────────────────────────────
+const MODES = {
+  hospital: {
+    agent: { initials: 'DP', name: 'Dr. Priya', role: 'Hospital Voice Receptionist', voice: 'hospital_female' },
+    actions: [
+      { label: 'Schedule an appointment for tomorrow', text: 'I need to book an appointment for tomorrow' },
+      { label: 'Check available doctors today', text: 'Which doctors are available today?' },
+      { label: 'What are the OPD consulting hours?', text: 'What are the OPD consulting hours?' },
+      { label: 'I have severe chest pain', text: 'I have severe chest pain right now' },
+      { label: 'Where is the 24/7 pharmacy?', text: 'Where is the pharmacy located?' },
+    ],
+    greet: "Hello, this is Dr. Priya with City General Hospital. How may I assist with your appointment or inquiry today?",
+  },
+  restaurant: {
+    agent: { initials: 'MY', name: 'Maya', role: 'Restaurant Service Assistant', voice: 'restaurant_female' },
+    actions: [
+      { label: 'Order a Chicken Tikka Pizza', text: 'I would like to order a Chicken Tikka Pizza' },
+      { label: 'What specials are on the menu?', text: 'What is on your menu today?' },
+      { label: 'Estimated delivery duration', text: 'How long does delivery take?' },
+      { label: 'Table reservation for 4 people', text: 'I want to reserve a table for 4 this evening' },
+      { label: 'Do you accept UPI / card payments?', text: 'Do you accept UPI or online payments?' },
+    ],
+    greet: "Welcome to Spice Route Restaurant, I'm Maya. What delicious dish or reservation can I arrange for you?",
+  },
+};
+
+// ─── Server Check ───────────────────────────────────────
+async function checkServer() {
+  try {
+    const r = await fetch(`${SERVER}/health`, { signal: AbortSignal.timeout(1500) });
+    const d = await r.json();
+    serverOnline = true;
+    if (!d.fishKey) {
+      showToast('Fish Audio key not detected in server environment');
+    }
+    return d;
+  } catch (e) {
+    serverOnline = false;
+    return null;
+  }
+}
+
+// ─── Waveform Animation ────────────────────────────────
+const NUM_BARS = 36;
+const wf = document.getElementById('waveform');
+const bars = [];
+for (let i = 0; i < NUM_BARS; i++) {
+  const b = document.createElement('div');
+  b.className = 'waveform-bar';
+  b.style.height = '4px';
+  wf.appendChild(b);
+  bars.push(b);
+}
+
+let waveAnimFrame = null;
+function animateWave(type) {
+  cancelAnimationFrame(waveAnimFrame);
+  const t = { idle: 0, listen: 1, speak: 2 }[type] || 0;
+  const update = () => {
+    bars.forEach((b, i) => {
+      let h;
+      if (t === 0) {
+        h = 4 + Math.sin(Date.now() / 900 + i * 0.4) * 2;
+        b.classList.remove('active');
+      } else if (t === 1) {
+        h = 6 + Math.abs(Math.sin(Date.now() / 130 + i * 0.6)) * (16 + Math.random() * 16);
+        b.classList.add('active');
+      } else {
+        const center = NUM_BARS / 2;
+        const dist = Math.abs(i - center) / center;
+        h = (4 + (1 - dist) * 32) * (0.5 + 0.5 * Math.sin(Date.now() / 90 + i * 0.4));
+        h = Math.max(4, h);
+        b.classList.add('active');
+      }
+      b.style.height = h + 'px';
+    });
+    waveAnimFrame = requestAnimationFrame(update);
+  };
+  update();
+}
+animateWave('idle');
+
+// ─── Status UI Helper ──────────────────────────────────
+function setStatus(s) {
+  const pill = document.getElementById('statusPill');
+  const txt = document.getElementById('statusText');
+  const avatar = document.getElementById('avatarRing');
+  const labels = {
+    idle: isCallActive ? 'Call Connected' : 'Ready to Call',
+    listen: 'Listening…',
+    think: 'Processing…',
+    speak: 'Speaking…',
+  };
+  pill.className = 'status-pill ' + s;
+  txt.textContent = labels[s] || s;
+  avatar.className = 'agent-avatar' + (s === 'listen' ? ' listening' : s === 'speak' ? ' speaking' : '');
+  animateWave(s === 'listen' ? 'listen' : s === 'speak' ? 'speak' : 'idle');
+}
+
+// ─── Call Timer UI ─────────────────────────────────────
+function updateCallUI() {
+  const m = Math.floor(callDuration / 60);
+  const s = String(callDuration % 60).padStart(2, '0');
+  const str = `${m}:${s}`;
+  const bannerText = document.getElementById('callBannerText');
+  if (bannerText) bannerText.textContent = `CONNECTED · ${str}`;
+}
+
+// ─── Call Lifecycle ────────────────────────────────────
+async function startCall() {
+  if (isCallActive) return;
+  isCallActive = true;
+  isMuted = false;
+  callDuration = 0;
+
+  document.getElementById('callBanner').style.display = 'inline-flex';
+  const primaryBtn = document.getElementById('callPrimaryBtn');
+  primaryBtn.className = 'btn-call-primary in-call';
+  document.getElementById('callBtnText').textContent = 'End Call';
+  document.getElementById('callBtnIcon').innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-3.33-2.67m-2.67-3.34a19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path><line x1="22" x2="2" y1="2" y2="22"></line></svg>`;
+  document.getElementById('callSubControls').style.display = 'flex';
+  document.getElementById('callHint').textContent = 'Continuous hands-free conversation active. Speak naturally.';
+
+  clearInterval(callTimer);
+  updateCallUI();
+  callTimer = setInterval(() => {
+    callDuration++;
+    updateCallUI();
+  }, 1000);
+
+  const cfg = MODES[mode];
+  addMsg('ai', cfg.greet);
+  await speak(cfg.greet, cfg.agent.voice);
+}
+
+function endCall() {
+  if (!isCallActive) return;
+  isCallActive = false;
+  clearInterval(callTimer);
+  stopSpeaking();
+  stopListening();
+
+  document.getElementById('callBanner').style.display = 'none';
+  const primaryBtn = document.getElementById('callPrimaryBtn');
+  primaryBtn.className = 'btn-call-primary';
+  document.getElementById('callBtnText').textContent = 'Start Voice Call';
+  document.getElementById('callBtnIcon').innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>`;
+  document.getElementById('callSubControls').style.display = 'none';
+  document.getElementById('callHint').textContent = 'Hands-free continuous dialogue. You speak, AI responds, no repeated clicks needed.';
+
+  const muteBtn = document.getElementById('muteBtn');
+  if (muteBtn) {
+    muteBtn.className = 'sub-btn';
+    document.getElementById('muteText').textContent = 'Mute';
+  }
+
+  setStatus('idle');
+  showTranscript('Call ended. Tap "Start Voice Call" to talk again.', false);
+}
+
+function toggleCall() {
+  if (isCallActive) {
+    endCall();
+  } else {
+    startCall();
+  }
+}
+
+function toggleMute() {
+  if (!isCallActive) return;
+  isMuted = !isMuted;
+  const txt = document.getElementById('muteText');
+  const btn = document.getElementById('muteBtn');
+  if (isMuted) {
+    stopListening();
+    btn.className = 'sub-btn active';
+    txt.textContent = 'Unmute';
+    showToast('Microphone muted');
+    setStatus('idle');
+    showTranscript('Microphone is muted', false);
+  } else {
+    btn.className = 'sub-btn';
+    txt.textContent = 'Mute';
+    showToast('Microphone active');
+    if (!isSpeaking && !isThinking) {
+      startListening();
+    }
+  }
+}
+
+function interruptAI() {
+  if (isSpeaking) {
+    stopSpeaking();
+    showToast('Interrupted assistant');
+    if (isCallActive && !isMuted) {
+      setTimeout(() => {
+        if (isCallActive && !isSpeaking && !isThinking && !isMuted) {
+          startListening();
+        }
+      }, 150);
+    }
+  }
+}
+
+// ─── Mode Switching ────────────────────────────────────
+function switchMode(m) {
+  if (isCallActive) endCall();
+  mode = m;
+  const cfg = MODES[m];
+  document.getElementById('modeHospital').className = 'mode-btn' + (m === 'hospital' ? ' active' : '');
+  document.getElementById('modeRestaurant').className = 'mode-btn' + (m === 'restaurant' ? ' active' : '');
+  document.getElementById('avatarInitials').textContent = cfg.agent.initials;
+  document.getElementById('aiName').textContent = cfg.agent.name;
+  document.getElementById('aiRole').textContent = cfg.agent.role;
+  renderActions();
+  clearConv(true);
+  showTranscript(`Ready to connect with ${cfg.agent.name}. Tap "Start Voice Call" to begin.`, false);
+}
+
+// ─── Suggested Inquiries ───────────────────────────────
+function renderActions() {
+  const acts = MODES[mode].actions;
+  const el = document.getElementById('quickActions');
+  el.innerHTML = acts.map(a => `
+    <button class="prompt-chip" onclick="runAction('${a.text.replace(/'/g,"\\'")}')">
+      <span>${a.label}</span>
+      <span class="prompt-arrow">→</span>
+    </button>
+  `).join('');
+}
+
+function runAction(text) {
+  if (!isCallActive) {
+    isCallActive = true;
+    isMuted = false;
+    callDuration = 0;
+    document.getElementById('callBanner').style.display = 'inline-flex';
+    const primaryBtn = document.getElementById('callPrimaryBtn');
+    primaryBtn.className = 'btn-call-primary in-call';
+    document.getElementById('callBtnText').textContent = 'End Call';
+    document.getElementById('callBtnIcon').innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-3.33-2.67m-2.67-3.34a19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path><line x1="22" x2="2" y1="2" y2="22"></line></svg>`;
+    document.getElementById('callSubControls').style.display = 'flex';
+    document.getElementById('callHint').textContent = 'Continuous hands-free conversation active. Speak naturally.';
+    clearInterval(callTimer);
+    updateCallUI();
+    callTimer = setInterval(() => { callDuration++; updateCallUI(); }, 1000);
+  }
+  stopListening();
+  stopSpeaking();
+  showTranscript(text, false);
+  handleInput(text);
+}
+
+// ─── Transcript Display ────────────────────────────────
+function showTranscript(text, interim = false) {
+  const box = document.getElementById('transcriptBox');
+  box.textContent = text;
+  box.className = 'transcript-box' + (text ? ' active' : '');
+  if (!interim && text) {
+    setTimeout(() => {
+      if (box.textContent === text && !isCallActive) {
+        box.textContent = 'Tap "Start Voice Call" to initiate a continuous phone-style conversation.';
+        box.className = 'transcript-box';
+      }
+    }, 3500);
+  }
+}
+
+// ─── Conversation Timeline ─────────────────────────────
+let messages = [];
+
+function addMsg(role, text) {
+  document.getElementById('emptyConv').style.display = 'none';
+  const scroll = document.getElementById('convScroll');
+  const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const div = document.createElement('div');
+  div.className = `msg-item ${role === 'ai' ? 'ai' : 'user'}`;
+  
+  const tag = role === 'ai'
+    ? `<span style="border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:9px">Fish Audio · S2.1 Pro</span>`
+    : '';
+
+  div.innerHTML = `
+    <div class="msg-bubble">${escHtml(text)}</div>
+    <div class="msg-meta">
+      <span>${now}</span>
+      ${tag}
+    </div>
+  `;
+  scroll.appendChild(div);
+  scroll.scrollTop = scroll.scrollHeight;
+  messages.push({ role: role === 'ai' ? 'assistant' : 'user', content: text });
+}
+
+function clearConv(silent = false) {
+  document.getElementById('convScroll').innerHTML = `<div class="empty-conv" id="emptyConv"><div>Your ongoing conversation will appear here</div></div>`;
+  messages = [];
+  if (!silent) showToast('Conversation cleared');
+}
+
+function escHtml(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ─── Conversational Logic ──────────────────────────────
+const HOSPITAL_RESPONSES = [
+  { p: /hear\s*me|can\s*you\s*hear|am\s*i\s*audible|mic\s*check|testing/i, r: "Yes, I can hear you loud and clear. How can I assist you at City General Hospital today?" },
+  { p: /who\s*are\s*you|your\s*name|what\s*is\s*your\s*name|who\s*is\s*this/i, r: "I am Dr. Priya, an AI voice receptionist for City General Hospital. I assist with appointments, doctor availability, and clinic inquiries." },
+  { p: /are\s*you\s*(real|ai|human|robot|a\s*bot)/i, r: "I am an automated clinical voice assistant designed to provide accurate information and schedule your visits in real time." },
+  { p: /^(hi|hello|hey|namaste|good\s*morning|good\s*afternoon|good\s*evening)\b/i, r: "Hello. Welcome to City General Hospital. How may I help you today?" },
+  { p: /how\s*are\s*you|how\s*do\s*you\s*do/i, r: "I am functioning well, thank you. How can I assist with your healthcare needs today?" },
+  { p: /chest\s*pain|emergency|heart\s*attack|severe\s*pain|bleeding|accident|unconscious/i, r: "If you are experiencing a medical emergency, please dial 108 immediately or proceed directly to our Emergency Department at the main hospital entrance." },
+  { p: /appointment|book|schedule|consultation|visit/i, r: "I can help schedule that for you. Could you provide your full name and the specialty or physician you wish to consult?" },
+  { p: /doctor|specialist|physician|who\s*is\s*available/i, r: "Dr. Rajan in Cardiology, Dr. Meera in Internal Medicine, and Dr. Anand in Orthopedics are consulting today. Which department do you require?" },
+  { p: /fever|cough|cold|headache|stomach|pain|sick|ill/i, r: "For these symptoms, I recommend booking with our General Physician, Dr. Meera. Consultations are available this morning and afternoon." },
+  { p: /opd|timings?|hours?|when\s*open|closing/i, r: "Outpatient consultations run Monday through Saturday, 8:00 AM to 7:00 PM. Emergency care operates 24 hours daily." },
+  { p: /pharmacy|medicine|drug|chemist/i, r: "Our 24-hour outpatient pharmacy is situated on the ground floor adjacent to the primary reception lobby." },
+  { p: /report|test|results?|blood\s*test|scan|x-ray|mri/i, r: "Diagnostic reports may be collected from the First Floor Diagnostic Center or downloaded securely via your patient portal within 24 hours." },
+  { p: /cost|fee|charge|price|insurance|cashless/i, r: "General consultations are ₹400. We process all recognized cashless insurance TPAs and corporate health plans." },
+  { p: /location|where|address|directions|parking/i, r: "City General Hospital is located on Central Medical Enclave, MG Road. Patient and visitor parking is accessible at Basement Level 1." },
+  { p: /thank\s*you|thanks|helpful|great|awesome/i, r: "You are welcome. Please let me know if you require any further assistance, and take care." },
+  { p: /^(yes|yeah|yep|sure|okay|ok|alright)\b/i, r: "Understood. Please provide your patient name and preferred appointment time." },
+  { p: /^(no|nope|not\s*now|nothing\s*else|bye|goodbye)\b/i, r: "Thank you for contacting City General Hospital. Have a pleasant day." },
+];
+
+const RESTAURANT_RESPONSES = [
+  { p: /hear\s*me|can\s*you\s*hear|am\s*i\s*audible|mic\s*check|testing/i, r: "Yes, I hear you clearly. Welcome to Spice Route. What can I prepare or reserve for you?" },
+  { p: /who\s*are\s*you|your\s*name|who\s*is\s*this/i, r: "I am Maya, your voice assistant at Spice Route. I handle orders, menu queries, and table reservations." },
+  { p: /are\s*you\s*(real|ai|human|robot)/i, r: "I am an automated service agent for Spice Route, built to assist you seamlessly." },
+  { p: /^(hi|hello|hey|good\s*morning|good\s*evening)\b/i, r: "Hello. Welcome to Spice Route. How may I take your order today?" },
+  { p: /pizza|chicken\s*tikka/i, r: "Our Chicken Tikka Pizza features smoky marinated chicken, spiced gravy, and mozzarella on a hand-stretched crust. Regular is ₹320, Large is ₹480." },
+  { p: /biryani|rice/i, r: "Our Dum Biryani is prepared with aged basmati and slow-cooked spices. Chicken Biryani is ₹250, Vegetable Biryani is ₹210." },
+  { p: /veg|vegetarian|paneer/i, r: "Vegetarian favorites include Paneer Butter Masala (₹280), Dal Makhani (₹220), and our Veg Loaded Pizza (₹290)." },
+  { p: /menu|what\s*do\s*you\s*have|dishes|eat|food/i, r: "Our popular selections today are Chicken Tikka Pizza (₹320), Paneer Butter Masala with Naan (₹320), and Dum Biryani (₹250)." },
+  { p: /delivery|how\s*long|time/i, r: "Delivery averages 30 to 45 minutes from confirmation. Would you like to proceed with an order?" },
+  { p: /table|reserve|reservation|book/i, r: "I can reserve a table for you. For how many guests and at what time would you prefer?" },
+  { p: /payment|upi|online|card|pay/i, r: "We support UPI options including Google Pay and PhonePe, credit and debit cards, as well as cash on delivery." },
+  { p: /thank\s*you|thanks|great/i, r: "You are welcome. Enjoy your meal, and feel free to reach out anytime." },
+  { p: /^(yes|yeah|sure|okay|ok)\b/i, r: "Noted. Please share your delivery address or contact number to proceed." },
+  { p: /^(no|nope|bye|goodbye)\b/i, r: "Thank you for choosing Spice Route. Have a wonderful day." },
+];
+
+function getScriptedReply(text) {
+  const clean = text.trim();
+  const list = mode === 'hospital' ? HOSPITAL_RESPONSES : RESTAURANT_RESPONSES;
+  for (const item of list) {
+    if (item.p.test(clean)) return item.r;
+  }
+  if (mode === 'hospital') {
+    return "I can assist with appointment bookings, doctor schedules, or hospital facility information. What would you like to know?";
+  } else {
+    return "I can assist with food orders, menu details, or table bookings. What can I arrange for you?";
+  }
+}
+
+// ─── Input Processor ───────────────────────────────────
+async function handleInput(text) {
+  if (!text || !text.trim()) return;
+  const cleanText = text.trim();
+  addMsg('user', cleanText);
+  isThinking = true;
+  setStatus('think');
+
+  const t0 = Date.now();
+  const reply = getScriptedReply(cleanText);
+
+  isThinking = false;
+  const rtt = Math.max(12, Date.now() - t0);
+  totalLatency += rtt;
+  turns++;
+  callCount++;
+  localStorage.setItem('mv_calls', callCount);
+
+  document.getElementById('mTurns').textContent = turns;
+  document.getElementById('mLatency').textContent = rtt + 'ms';
+
+  addMsg('ai', reply);
+  speak(reply, MODES[mode].agent.voice);
+}
+
+// ─── Fish Audio TTS Engine ─────────────────────────────
+async function speak(text, voice = 'hospital_female') {
+  stopSpeaking();
+  stopListening();
+  isSpeaking = true;
+  setStatus('speak');
+
+  const onSpeechFinished = () => {
+    isSpeaking = false;
+    currentAudio = null;
+    if (isCallActive && !isMuted) {
+      setStatus('listen');
+      setTimeout(() => {
+        if (isCallActive && !isSpeaking && !isThinking && !isMuted) {
+          startListening();
+        }
+      }, 150);
+    } else {
+      setStatus('idle');
+    }
+  };
+
+  if (serverOnline) {
+    try {
+      const r = await fetch(`${SERVER}/tts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, voice, reference_id: '0429f2b252464b88b2ab2128f084290c' }),
+        signal: AbortSignal.timeout(15000),
+      });
+      if (r.ok) {
+        const blob = await r.blob();
+        const audioUrl = URL.createObjectURL(blob);
+        const audio = new Audio(audioUrl);
+        currentAudio = audio;
+        audio.play();
+        audio.onended = () => {
+          URL.revokeObjectURL(audioUrl);
+          onSpeechFinished();
+        };
+        audio.onerror = () => {
+          fallbackTTS(text, voice, onSpeechFinished);
+        };
+        return;
+      }
+    } catch (e) {
+      console.warn('TTS request error, using fallback:', e.message);
+    }
+  }
+
+  fallbackTTS(text, voice, onSpeechFinished);
+}
+
+function fallbackTTS(text, voice, onEnd) {
+  if (typeof speechSynthesis !== 'undefined') {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 1.0;
+    u.pitch = voice.includes('female') ? 1.05 : 0.95;
+    u.volume = 1;
+    const voices = speechSynthesis.getVoices();
+    const preferred = voices.find(v => v.lang.startsWith('en') && v.name.toLowerCase().includes('female'))
+                    || voices.find(v => v.lang.startsWith('en-IN'))
+                    || voices.find(v => v.lang.startsWith('en'));
+    if (preferred) u.voice = preferred;
+    u.onend = () => { if (onEnd) onEnd(); };
+    u.onerror = () => { if (onEnd) onEnd(); };
+    currentAudio = { pause: () => speechSynthesis.cancel() };
+    speechSynthesis.speak(u);
+  } else {
+    if (onEnd) onEnd();
+  }
+}
+
+function stopSpeaking() {
+  if (currentAudio) {
+    try { currentAudio.pause(); } catch (e) {}
+    currentAudio = null;
+  }
+  if (typeof speechSynthesis !== 'undefined') {
+    try { speechSynthesis.cancel(); } catch (e) {}
+  }
+  isSpeaking = false;
+  if (!isCallActive) setStatus('idle');
+}
+
+// ─── Real-Time Continuous STT ──────────────────────────
+function startListening() {
+  if (!isCallActive || isSpeaking || isThinking || isMuted) return;
+  stopListening();
+
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    showToast('Speech recognition requires Chrome or Edge browser');
+    return;
+  }
+
+  currentTurnTranscript = '';
+  clearTimeout(silenceTimer);
+
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRec();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+  recognition.lang = navigator.language || 'en-US';
+
+  recognition.onstart = () => {
+    setStatus('listen');
+    showTranscript('Listening… speak naturally', true);
+  };
+
+  recognition.onresult = (e) => {
+    if (!isCallActive || isSpeaking || isThinking || isMuted) return;
+    clearTimeout(silenceTimer);
+
+    let interim = '';
+    let final = '';
+    for (let i = 0; i < e.results.length; i++) {
+      if (e.results[i].isFinal) {
+        final += e.results[i][0].transcript + ' ';
+      } else {
+        interim += e.results[i][0].transcript;
+      }
+    }
+
+    const full = (final + interim).trim();
+    if (full) {
+      currentTurnTranscript = full;
+      showTranscript(full, true);
+
+      silenceTimer = setTimeout(() => {
+        const textToSend = currentTurnTranscript.trim();
+        if (textToSend && isCallActive && !isSpeaking && !isThinking) {
+          stopListening();
+          handleInput(textToSend);
+        }
+      }, 750);
+    }
+  };
+
+  recognition.onerror = (e) => {
+    if (e.error === 'no-speech') return;
+    if (e.error === 'not-allowed') {
+      showToast('Microphone permission blocked in browser');
+      endCall();
+    }
+  };
+
+  recognition.onend = () => {
+    if (isCallActive && !isSpeaking && !isThinking && !isMuted) {
+      try { recognition.start(); } catch (err) {}
+    }
+  };
+
+  try {
+    recognition.start();
+  } catch (err) {
+    console.warn('Recognition start caught error:', err);
+  }
+}
+
+function stopListening() {
+  clearTimeout(silenceTimer);
+  if (recognition) {
+    recognition.onend = null;
+    recognition.onerror = null;
+    try { recognition.abort(); } catch (e) {}
+    try { recognition.stop(); } catch (e) {}
+    recognition = null;
+  }
+}
+
+// ─── Shortcuts ─────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && !['INPUT','TEXTAREA'].includes(e.target.tagName)) {
+    e.preventDefault();
+    if (!isCallActive) {
+      startCall();
+    } else if (isSpeaking) {
+      interruptAI();
+    } else {
+      toggleMute();
+    }
+  }
+  if (e.code === 'Escape') {
+    closeModal();
+    if (isCallActive) endCall();
+  }
+});
+
+// ─── Early Access Modal ────────────────────────────────
+function openModal() {
+  document.getElementById('earlyModal').classList.add('open');
+  document.getElementById('signupEmail').focus();
+}
+function closeModal() {
+  document.getElementById('earlyModal').classList.remove('open');
+}
+document.getElementById('earlyModal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeModal();
+});
+
+async function submitSignup() {
+  const name = document.getElementById('signupName').value.trim();
+  const email = document.getElementById('signupEmail').value.trim();
+  const usecase = document.getElementById('signupUsecase').value.trim();
+  if (!name || !email) { showToast('Please enter your name and email'); return; }
+  if (!email.includes('@')) { showToast('Please enter a valid email address'); return; }
+
+  const btn = document.getElementById('signupSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Submitting…';
+
+  try {
+    if (serverOnline) {
+      await fetch(`${SERVER}/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, usecase }),
+        signal: AbortSignal.timeout(8000),
+      });
+    } else {
+      await fetch('https://formspree.io/f/xpwrdbvg', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ name, email, usecase, _subject: 'MedVoice Early Access' }),
+      });
+    }
+  } catch (e) {}
+
+  document.getElementById('modalForm').style.display = 'none';
+  document.getElementById('signupSuccess').style.display = 'block';
+}
+
+// ─── Toast Notification ────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ─── Session Timer ─────────────────────────────────────
+setInterval(() => {
+  const s = Math.floor((Date.now() - sessionStart) / 1000);
+  document.getElementById('mTime').textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+}, 1000);
+
+// ─── Init ──────────────────────────────────────────────
+renderActions();
+checkServer();
+showTranscript('Tap "Start Voice Call" to initiate a continuous phone-style conversation.', false);
+</script>
+</body>
+</html>

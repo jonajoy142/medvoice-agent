@@ -1,0 +1,6 @@
+name = "medvoice-agent"
+main = "worker.js"
+compatibility_date = "2024-09-23"
+
+[vars]
+DEFAULT_VOICE_ID = "0429f2b252464b88b2ab2128f084290c"
