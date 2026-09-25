@@ -3,10 +3,19 @@
   "installCommand": "npm ci",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "cleanUrls": true,
   "rewrites": [
     {
       "source": "/demo",
       "destination": "/demo.html"
+    },
+    {
+      "source": "/dashboard/(.*)",
+      "destination": "/dashboard.html"
+    },
+    {
+      "source": "/dashboard",
+      "destination": "/dashboard.html"
     },
     {
       "source": "/(.*)",

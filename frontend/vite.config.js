@@ -10,6 +10,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         demo: resolve(__dirname, 'demo.html'),
+        dashboard: resolve(__dirname, 'dashboard.html'),
       }
     }
   },

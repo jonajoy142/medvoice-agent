@@ -3,10 +3,19 @@
   "installCommand": "if [ -d frontend ]; then cd frontend; fi; npm ci",
   "buildCommand": "if [ -d frontend ]; then cd frontend && npm run build && rm -rf ../dist && cp -R dist ../dist; else npm run build; fi",
   "outputDirectory": "dist",
+  "cleanUrls": true,
   "rewrites": [
     {
       "source": "/demo",
       "destination": "/demo.html"
+    },
+    {
+      "source": "/dashboard/(.*)",
+      "destination": "/dashboard.html"
+    },
+    {
+      "source": "/dashboard",
+      "destination": "/dashboard.html"
     },
     {
       "source": "/(.*)",
