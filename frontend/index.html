@@ -1047,12 +1047,71 @@ function updateCallUI() {
   if (bannerText) bannerText.textContent = `CONNECTED · ${str}`;
 }
 
+// ─── Telephone Ringback Tone (Web Audio API) ─────────────
+let ringAudioCtx = null;
+let ringInterval = null;
+
+function playPhoneRing() {
+  stopPhoneRing();
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    ringAudioCtx = new AudioCtx();
+    if (ringAudioCtx.state === 'suspended') ringAudioCtx.resume();
+
+    function triggerBurst() {
+      if (!ringAudioCtx || ringAudioCtx.state === 'closed') return;
+      const t = ringAudioCtx.currentTime;
+      const osc1 = ringAudioCtx.createOscillator();
+      const osc2 = ringAudioCtx.createOscillator();
+      const gain = ringAudioCtx.createGain();
+
+      osc1.type = 'sine';
+      osc2.type = 'sine';
+      // Classic phone ringback frequencies: 440Hz + 480Hz
+      osc1.frequency.setValueAtTime(440, t);
+      osc2.frequency.setValueAtTime(480, t);
+
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.08, t + 0.05);
+      gain.gain.setValueAtTime(0.08, t + 1.2);
+      gain.gain.linearRampToValueAtTime(0, t + 1.25);
+
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(ringAudioCtx.destination);
+
+      osc1.start(t);
+      osc2.start(t);
+      osc1.stop(t + 1.3);
+      osc2.stop(t + 1.3);
+    }
+
+    triggerBurst();
+    ringInterval = setInterval(triggerBurst, 3000);
+  } catch (e) {
+    console.warn('Phone ring tone not available:', e);
+  }
+}
+
+function stopPhoneRing() {
+  if (ringInterval) {
+    clearInterval(ringInterval);
+    ringInterval = null;
+  }
+  if (ringAudioCtx) {
+    try { ringAudioCtx.close(); } catch (e) {}
+    ringAudioCtx = null;
+  }
+}
+
 // ─── Call Lifecycle ────────────────────────────────────
 async function startCall() {
   if (isCallActive) return;
   isCallActive = true;
   isMuted = false;
   callDuration = 0;
+  convState.reset();
 
   document.getElementById('callBanner').style.display = 'inline-flex';
   const primaryBtn = document.getElementById('callPrimaryBtn');
@@ -1060,7 +1119,12 @@ async function startCall() {
   document.getElementById('callBtnText').textContent = 'End Call';
   document.getElementById('callBtnIcon').innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-3.33-2.67m-2.67-3.34a19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path><line x1="22" x2="2" y1="2" y2="22"></line></svg>`;
   document.getElementById('callSubControls').style.display = 'flex';
-  document.getElementById('callHint').textContent = 'Continuous hands-free conversation active. Speak naturally.';
+  document.getElementById('callHint').textContent = 'Ringing... Connecting to ' + MODES[mode].agent.name;
+
+  // 1. Play real telephone ringtone
+  playPhoneRing();
+  setStatus('think');
+  showTranscript('Ringing… Connecting to ' + MODES[mode].agent.name, false);
 
   clearInterval(callTimer);
   updateCallUI();
@@ -1070,13 +1134,19 @@ async function startCall() {
   }, 1000);
 
   const cfg = MODES[mode];
-  addMsg('ai', cfg.greet);
-  await speak(cfg.greet, cfg.agent.voice);
+
+  // 2. Synthesize opening greeting, stop ringtone as soon as voice begins
+  speak(cfg.greet, cfg.agent.voice, () => {
+    stopPhoneRing();
+    addMsg('ai', cfg.greet);
+    document.getElementById('callHint').textContent = 'Continuous hands-free conversation active. Speak naturally.';
+  });
 }
 
 function endCall() {
   if (!isCallActive) return;
   isCallActive = false;
+  stopPhoneRing();
   clearInterval(callTimer);
   stopSpeaking();
   stopListening();
@@ -1236,60 +1306,195 @@ function addMsg(role, text) {
 function clearConv(silent = false) {
   document.getElementById('convScroll').innerHTML = `<div class="empty-conv" id="emptyConv"><div>Your ongoing conversation will appear here</div></div>`;
   messages = [];
+  convState.reset();
   if (!silent) showToast('Conversation cleared');
 }
 
 function escHtml(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-// ─── Conversational Logic ──────────────────────────────
-const HOSPITAL_RESPONSES = [
-  { p: /hear\s*me|can\s*you\s*hear|am\s*i\s*audible|mic\s*check|testing/i, r: "Yes, I can hear you loud and clear. How can I assist you at City General Hospital today?" },
-  { p: /who\s*are\s*you|your\s*name|what\s*is\s*your\s*name|who\s*is\s*this/i, r: "I am Dr. Priya, an AI voice receptionist for City General Hospital. I assist with appointments, doctor availability, and clinic inquiries." },
-  { p: /are\s*you\s*(real|ai|human|robot|a\s*bot)/i, r: "I am an automated clinical voice assistant designed to provide accurate information and schedule your visits in real time." },
-  { p: /^(hi|hello|hey|namaste|good\s*morning|good\s*afternoon|good\s*evening)\b/i, r: "Hello. Welcome to City General Hospital. How may I help you today?" },
-  { p: /how\s*are\s*you|how\s*do\s*you\s*do/i, r: "I am functioning well, thank you. How can I assist with your healthcare needs today?" },
-  { p: /chest\s*pain|emergency|heart\s*attack|severe\s*pain|bleeding|accident|unconscious/i, r: "If you are experiencing a medical emergency, please dial 108 immediately or proceed directly to our Emergency Department at the main hospital entrance." },
-  { p: /appointment|book|schedule|consultation|visit/i, r: "I can help schedule that for you. Could you provide your full name and the specialty or physician you wish to consult?" },
-  { p: /doctor|specialist|physician|who\s*is\s*available/i, r: "Dr. Rajan in Cardiology, Dr. Meera in Internal Medicine, and Dr. Anand in Orthopedics are consulting today. Which department do you require?" },
-  { p: /fever|cough|cold|headache|stomach|pain|sick|ill/i, r: "For these symptoms, I recommend booking with our General Physician, Dr. Meera. Consultations are available this morning and afternoon." },
-  { p: /opd|timings?|hours?|when\s*open|closing/i, r: "Outpatient consultations run Monday through Saturday, 8:00 AM to 7:00 PM. Emergency care operates 24 hours daily." },
-  { p: /pharmacy|medicine|drug|chemist/i, r: "Our 24-hour outpatient pharmacy is situated on the ground floor adjacent to the primary reception lobby." },
-  { p: /report|test|results?|blood\s*test|scan|x-ray|mri/i, r: "Diagnostic reports may be collected from the First Floor Diagnostic Center or downloaded securely via your patient portal within 24 hours." },
-  { p: /cost|fee|charge|price|insurance|cashless/i, r: "General consultations are ₹400. We process all recognized cashless insurance TPAs and corporate health plans." },
-  { p: /location|where|address|directions|parking/i, r: "City General Hospital is located on Central Medical Enclave, MG Road. Patient and visitor parking is accessible at Basement Level 1." },
-  { p: /thank\s*you|thanks|helpful|great|awesome/i, r: "You are welcome. Please let me know if you require any further assistance, and take care." },
-  { p: /^(yes|yeah|yep|sure|okay|ok|alright)\b/i, r: "Understood. Please provide your patient name and preferred appointment time." },
-  { p: /^(no|nope|not\s*now|nothing\s*else|bye|goodbye)\b/i, r: "Thank you for contacting City General Hospital. Have a pleasant day." },
-];
+// ─── State-Machine Conversational Logic ────────────────
+const convState = {
+  patientName: '',
+  department: '',
+  doctor: '',
+  dateOrTime: '',
+  step: 'idle', // 'awaiting_details', 'awaiting_name', 'awaiting_dept', 'awaiting_time', 'confirmed', 'completed'
+  
+  customerName: '',
+  orderItems: [],
+  orderType: '',
+  address: '',
+  orderStep: 'idle',
 
-const RESTAURANT_RESPONSES = [
-  { p: /hear\s*me|can\s*you\s*hear|am\s*i\s*audible|mic\s*check|testing/i, r: "Yes, I hear you clearly. Welcome to Spice Route. What can I prepare or reserve for you?" },
-  { p: /who\s*are\s*you|your\s*name|who\s*is\s*this/i, r: "I am Maya, your voice assistant at Spice Route. I handle orders, menu queries, and table reservations." },
-  { p: /are\s*you\s*(real|ai|human|robot)/i, r: "I am an automated service agent for Spice Route, built to assist you seamlessly." },
-  { p: /^(hi|hello|hey|good\s*morning|good\s*evening)\b/i, r: "Hello. Welcome to Spice Route. How may I take your order today?" },
-  { p: /pizza|chicken\s*tikka/i, r: "Our Chicken Tikka Pizza features smoky marinated chicken, spiced gravy, and mozzarella on a hand-stretched crust. Regular is ₹320, Large is ₹480." },
-  { p: /biryani|rice/i, r: "Our Dum Biryani is prepared with aged basmati and slow-cooked spices. Chicken Biryani is ₹250, Vegetable Biryani is ₹210." },
-  { p: /veg|vegetarian|paneer/i, r: "Vegetarian favorites include Paneer Butter Masala (₹280), Dal Makhani (₹220), and our Veg Loaded Pizza (₹290)." },
-  { p: /menu|what\s*do\s*you\s*have|dishes|eat|food/i, r: "Our popular selections today are Chicken Tikka Pizza (₹320), Paneer Butter Masala with Naan (₹320), and Dum Biryani (₹250)." },
-  { p: /delivery|how\s*long|time/i, r: "Delivery averages 30 to 45 minutes from confirmation. Would you like to proceed with an order?" },
-  { p: /table|reserve|reservation|book/i, r: "I can reserve a table for you. For how many guests and at what time would you prefer?" },
-  { p: /payment|upi|online|card|pay/i, r: "We support UPI options including Google Pay and PhonePe, credit and debit cards, as well as cash on delivery." },
-  { p: /thank\s*you|thanks|great/i, r: "You are welcome. Enjoy your meal, and feel free to reach out anytime." },
-  { p: /^(yes|yeah|sure|okay|ok)\b/i, r: "Noted. Please share your delivery address or contact number to proceed." },
-  { p: /^(no|nope|bye|goodbye)\b/i, r: "Thank you for choosing Spice Route. Have a wonderful day." },
-];
+  reset() {
+    this.patientName = '';
+    this.department = '';
+    this.doctor = '';
+    this.dateOrTime = '';
+    this.step = 'idle';
+    this.customerName = '';
+    this.orderItems = [];
+    this.orderType = '';
+    this.address = '';
+    this.orderStep = 'idle';
+  }
+};
 
-function getScriptedReply(text) {
+function handleHospitalDialogue(clean, lower) {
+  // 1. Emergency
+  if (/chest\s*pain|emergency|heart\s*attack|severe\s*pain|bleeding|accident|unconscious/i.test(lower)) {
+    return "If you are experiencing severe chest pain or a medical emergency, please dial 108 immediately or proceed directly to our Emergency Department at the main hospital entrance.";
+  }
+
+  // 2. Extract Name
+  const nameMatch = clean.match(/(?:my name is|i am|this is|call me|name is|i'm)\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)/i)
+    || clean.match(/(?:patient name(?:\s+is)?)\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)/i);
+  if (nameMatch && nameMatch[1]) {
+    const candidate = nameMatch[1].trim();
+    if (!/^(the|a|an|here|interested|calling|booking|today|tomorrow|doctor|cardiology)$/i.test(candidate)) {
+      convState.patientName = candidate.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+    }
+  }
+
+  // If user was directly asked for name and says "Jonah" or "Jonah Joy":
+  if (!convState.patientName && convState.step === 'awaiting_name') {
+    const words = clean.split(/\s+/);
+    if (words.length <= 3 && !/appointment|doctor|cardiology|hospital/i.test(clean)) {
+      convState.patientName = clean.replace(/[.,!]/g, '').trim();
+    }
+  }
+
+  // 3. Extract Department & Doctor
+  if (/cardio|heart/i.test(lower)) {
+    convState.department = 'Cardiology';
+    convState.doctor = 'Dr. Rajan';
+  } else if (/ortho|bone|joint|fracture/i.test(lower)) {
+    convState.department = 'Orthopedics';
+    convState.doctor = 'Dr. Anand';
+  } else if (/internal|general\s*physician|physician|fever|cough|cold|headache|stomach/i.test(lower)) {
+    convState.department = 'Internal Medicine';
+    convState.doctor = 'Dr. Meera';
+  } else if (/pediatric|child|baby|infant/i.test(lower)) {
+    convState.department = 'Pediatrics';
+    convState.doctor = 'Dr. Kavita';
+  } else if (/ent|ear|nose|throat/i.test(lower)) {
+    convState.department = 'ENT';
+    convState.doctor = 'Dr. Suresh';
+  } else if (/derma|skin/i.test(lower)) {
+    convState.department = 'Dermatology';
+    convState.doctor = 'Dr. Neha';
+  }
+
+  // 4. Extract Time / Date
+  const timeMatch = clean.match(/(tomorrow(?:\s+morning|\s+afternoon|\s+evening|\s+at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?)?|today(?:\s+morning|\s+afternoon)?|\d{1,2}(?::\d{2})?\s*(?:am|pm)|morning|afternoon|evening)/i);
+  if (timeMatch) {
+    convState.dateOrTime = timeMatch[0].trim();
+  }
+
+  // 5. User remarks about already providing name
+  if (/already\s*(told|said|mentioned)|how\s*many\s*(times|mention)|i\s*said\s*my\s*name/i.test(lower)) {
+    const nameStr = convState.patientName ? `as ${convState.patientName}` : '';
+    return `My apologies! I have your name noted ${nameStr}. Let's proceed with scheduling your appointment with ${convState.doctor || 'our doctor'}. What time would you prefer?`;
+  }
+
+  // 6. User asks for confirmation / SMS
+  if (convState.step === 'confirmed' && /^(yes|yeah|yep|sure|please|send|okay|ok)\b/i.test(lower)) {
+    convState.step = 'completed';
+    return `A confirmation SMS with booking reference MV-4821 has been sent to your registered number. Please arrive 10 minutes prior to your slot. Is there anything else I can assist you with, ${convState.patientName || ''}?`;
+  }
+
+  // 7. Appointment scheduling flow
+  const wantsBooking = /appointment|book|schedule|consultation|visit/i.test(lower) || convState.step !== 'idle';
+  if (wantsBooking) {
+    if (convState.department && convState.patientName && convState.dateOrTime) {
+      convState.step = 'confirmed';
+      return `Your appointment with ${convState.doctor} in ${convState.department} is confirmed for ${convState.patientName} for ${convState.dateOrTime}. Your booking ID is MV-4821. Would you like an SMS confirmation?`;
+    }
+
+    if (convState.department && convState.patientName && !convState.dateOrTime) {
+      convState.step = 'awaiting_time';
+      return `Thank you, ${convState.patientName}. I have noted an appointment with ${convState.doctor} in ${convState.department}. What date or time would you prefer, such as tomorrow morning?`;
+    }
+
+    if (convState.department && !convState.patientName) {
+      convState.step = 'awaiting_name';
+      return `Certainly! I can schedule you with ${convState.doctor} in ${convState.department}. May I please have your full name?`;
+    }
+
+    if (!convState.department && convState.patientName) {
+      convState.step = 'awaiting_dept';
+      return `Hello ${convState.patientName}. Which specialty or physician would you like to consult? We have Dr. Rajan in Cardiology, Dr. Meera in Internal Medicine, and Dr. Anand in Orthopedics.`;
+    }
+
+    convState.step = 'awaiting_details';
+    return "I can certainly help schedule that for you. Which medical department or doctor would you like to see, and may I have your full name?";
+  }
+
+  // 8. General Hospital Queries
+  if (/doctor|specialist|physician|who\s*is\s*available/i.test(lower)) {
+    return "Dr. Rajan in Cardiology, Dr. Meera in Internal Medicine, and Dr. Anand in Orthopedics are consulting today. Which department would you like to book?";
+  }
+  if (/opd|timings?|hours?|when\s*open|closing/i.test(lower)) {
+    return "Outpatient consultations run Monday through Saturday, 8:00 AM to 7:00 PM. Emergency care operates 24 hours daily.";
+  }
+  if (/pharmacy|medicine|drug|chemist/i.test(lower)) {
+    return "Our 24-hour outpatient pharmacy is situated on the ground floor adjacent to the primary reception lobby.";
+  }
+  if (/report|test|results?|blood\s*test|scan|x-ray|mri/i.test(lower)) {
+    return "Diagnostic reports may be collected from the First Floor Diagnostic Center or downloaded securely via your patient portal within 24 hours.";
+  }
+  if (/cost|fee|charge|price|insurance|cashless/i.test(lower)) {
+    return "General consultations are ₹400. We process all recognized cashless insurance TPAs and corporate health plans.";
+  }
+  if (/location|where|address|directions|parking/i.test(lower)) {
+    return "City General Hospital is located on Central Medical Enclave, MG Road. Patient and visitor parking is accessible at Basement Level 1.";
+  }
+  if (/thank\s*you|thanks|helpful|great/i.test(lower)) {
+    return `You are very welcome${convState.patientName ? ', ' + convState.patientName : ''}. Please take care and have a pleasant day.`;
+  }
+  if (/^(hi|hello|hey|namaste|good\s*morning)\b/i.test(lower)) {
+    return `Hello${convState.patientName ? ' ' + convState.patientName : ''}. Welcome to City General Hospital. How may I assist you with your appointment or inquiry today?`;
+  }
+
+  if (convState.patientName) {
+    return `I am here to help you, ${convState.patientName}. Would you like to schedule an appointment with Dr. Rajan in Cardiology, or check hospital information?`;
+  }
+  return "I can assist with appointment bookings, doctor schedules, or hospital facility information. What would you like to know?";
+}
+
+function handleRestaurantDialogue(clean, lower) {
+  if (/pizza|tikka/i.test(lower)) {
+    convState.orderItems.push('Chicken Tikka Pizza');
+    return "I have added Chicken Tikka Pizza to your selection. Would you like anything else, or should we proceed with delivery or pickup?";
+  }
+  if (/biryani/i.test(lower)) {
+    convState.orderItems.push('Dum Biryani');
+    return "I have added Dum Biryani to your order. Would you prefer delivery or a table reservation?";
+  }
+  if (/delivery|address/i.test(lower)) {
+    convState.orderType = 'delivery';
+    return "Delivery averages 30 to 45 minutes. Could you please share your delivery address or contact number?";
+  }
+  if (/table|reserve|reservation/i.test(lower)) {
+    convState.orderType = 'table';
+    return "I can reserve a table for you at Spice Route. For how many guests and at what time would you prefer?";
+  }
+  if (/menu|food|eat|dishes/i.test(lower)) {
+    return "Our top recommendations today are Chicken Tikka Pizza (₹320), Dum Biryani (₹250), and Paneer Butter Masala (₹280).";
+  }
+  if (/payment|upi|card|pay/i.test(lower)) {
+    return "We support UPI options including Google Pay and PhonePe, credit and debit cards, as well as cash on delivery.";
+  }
+  if (/thank\s*you|thanks/i.test(lower)) {
+    return "You are welcome. Enjoy your meal and thank you for choosing Spice Route.";
+  }
+  return "Welcome to Spice Route. I can assist with placing an order, menu recommendations, or table bookings. What can I arrange for you?";
+}
+
+function getContextualReply(text) {
   const clean = text.trim();
-  const list = mode === 'hospital' ? HOSPITAL_RESPONSES : RESTAURANT_RESPONSES;
-  for (const item of list) {
-    if (item.p.test(clean)) return item.r;
-  }
-  if (mode === 'hospital') {
-    return "I can assist with appointment bookings, doctor schedules, or hospital facility information. What would you like to know?";
-  } else {
-    return "I can assist with food orders, menu details, or table bookings. What can I arrange for you?";
-  }
+  const lower = clean.toLowerCase();
+  return mode === 'hospital' ? handleHospitalDialogue(clean, lower) : handleRestaurantDialogue(clean, lower);
 }
 
 // ─── Input Processor ───────────────────────────────────
@@ -1301,7 +1506,7 @@ async function handleInput(text) {
   setStatus('think');
 
   const t0 = Date.now();
-  const reply = getScriptedReply(cleanText);
+  const reply = getContextualReply(cleanText);
 
   isThinking = false;
   const rtt = Math.max(12, Date.now() - t0);
@@ -1313,18 +1518,79 @@ async function handleInput(text) {
   document.getElementById('mTurns').textContent = turns;
   document.getElementById('mLatency').textContent = rtt + 'ms';
 
-  addMsg('ai', reply);
-  speak(reply, MODES[mode].agent.voice);
+  // Speak with callback when speech begins to sync chat bubble with voice
+  speak(reply, MODES[mode].agent.voice, () => {
+    addMsg('ai', reply);
+  });
 }
 
-// ─── Fish Audio TTS Engine ─────────────────────────────
-async function speak(text, voice = 'hospital_female') {
+// ─── Fish Audio Low-Latency TTS Engine ─────────────────
+const audioCache = new Map();
+let activePlaybackToken = 0;
+
+async function fetchTTSBlob(text, voice) {
+  const key = `${voice}:::${text.trim()}`;
+  if (audioCache.has(key)) return audioCache.get(key);
+
+  const r = await fetch(`${SERVER}/tts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, voice, reference_id: '0429f2b252464b88b2ab2128f084290c' }),
+    signal: AbortSignal.timeout(12000),
+  });
+  if (!r.ok) throw new Error(`TTS failed with status ${r.status}`);
+  const blob = await r.blob();
+  if (audioCache.size > 50) audioCache.clear();
+  audioCache.set(key, blob);
+  return blob;
+}
+
+function splitSentences(text) {
+  const parts = text.match(/[^.!?]+[.!?]+|\S+/g);
+  if (!parts || parts.length <= 1) return [text];
+  const result = [];
+  let buffer = '';
+  for (const p of parts) {
+    buffer += (buffer ? ' ' : '') + p.trim();
+    if (buffer.length > 35 || p.endsWith('.') || p.endsWith('?') || p.endsWith('!')) {
+      result.push(buffer);
+      buffer = '';
+    }
+  }
+  if (buffer) result.push(buffer);
+  return result.length > 0 ? result : [text];
+}
+
+function playAudioBlob(blob) {
+  return new Promise((resolve) => {
+    try {
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      currentAudio = audio;
+      audio.onended = () => {
+        URL.revokeObjectURL(url);
+        resolve();
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve();
+      };
+      audio.play().catch(() => resolve());
+    } catch (e) {
+      resolve();
+    }
+  });
+}
+
+async function speak(text, voice = 'hospital_female', onStart) {
   stopSpeaking();
   stopListening();
+  const token = ++activePlaybackToken;
   isSpeaking = true;
   setStatus('speak');
 
   const onSpeechFinished = () => {
+    if (token !== activePlaybackToken) return;
     isSpeaking = false;
     currentAudio = null;
     if (isCallActive && !isMuted) {
@@ -1341,32 +1607,40 @@ async function speak(text, voice = 'hospital_female') {
 
   if (serverOnline) {
     try {
-      const r = await fetch(`${SERVER}/tts`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, voice, reference_id: '0429f2b252464b88b2ab2128f084290c' }),
-        signal: AbortSignal.timeout(15000),
-      });
-      if (r.ok) {
-        const blob = await r.blob();
-        const audioUrl = URL.createObjectURL(blob);
-        const audio = new Audio(audioUrl);
-        currentAudio = audio;
-        audio.play();
-        audio.onended = () => {
-          URL.revokeObjectURL(audioUrl);
-          onSpeechFinished();
-        };
-        audio.onerror = () => {
-          fallbackTTS(text, voice, onSpeechFinished);
-        };
+      const sentences = splitSentences(text);
+      if (sentences.length <= 1) {
+        const blob = await fetchTTSBlob(text, voice);
+        if (token !== activePlaybackToken) return;
+        if (onStart) onStart();
+        await playAudioBlob(blob);
+        onSpeechFinished();
         return;
       }
+
+      // Sentence Pipelining: Fetch sentence 1 first for near-instant speech
+      const firstBlob = await fetchTTSBlob(sentences[0], voice);
+      if (token !== activePlaybackToken) return;
+      if (onStart) onStart();
+
+      // In parallel, prefetch sentence 2+ while sentence 1 plays
+      const remainingPromise = Promise.all(sentences.slice(1).map(s => fetchTTSBlob(s, voice).catch(() => null)));
+
+      await playAudioBlob(firstBlob);
+      if (token !== activePlaybackToken) return;
+
+      const remainingBlobs = await remainingPromise;
+      for (const b of remainingBlobs) {
+        if (token !== activePlaybackToken) return;
+        if (b) await playAudioBlob(b);
+      }
+      onSpeechFinished();
+      return;
     } catch (e) {
-      console.warn('TTS request error, using fallback:', e.message);
+      console.warn('Fish Audio streaming, falling back to browser TTS:', e.message);
     }
   }
 
+  if (onStart) onStart();
   fallbackTTS(text, voice, onSpeechFinished);
 }
 
@@ -1392,6 +1666,7 @@ function fallbackTTS(text, voice, onEnd) {
 }
 
 function stopSpeaking() {
+  activePlaybackToken++;
   if (currentAudio) {
     try { currentAudio.pause(); } catch (e) {}
     currentAudio = null;
