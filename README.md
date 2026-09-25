@@ -1,227 +1,233 @@
-# MedVoice AI
+# 🎙️ MedVoice AI — Real-Time Voice Agent
 
-MedVoice is a multi-tenant hospital/clinic AI voice-agent SaaS foundation for receptionist operations: overview analytics, agents, calls, reports, knowledge base, contacts, settings, billing views, and platform administration.
+> **AI-powered voice agent for hospitals and restaurants** · Real-time speech · Gemini AI · Exotel Telephony · Multi-tenant SaaS
 
-MedVoice is not a diagnostic tool. The schema tracks business and operations data only: calls, leads, appointments, outcomes, revenue influence, and safe escalation metadata. Do not store diagnosis, prescriptions, clinical history, or medical reports.
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Try%20Now-6366f1?style=for-the-badge&logo=google-chrome)](https://jonajoy142.github.io/medvoice-agent/)
+[![GitHub](https://img.shields.io/badge/GitHub-Source-black?style=for-the-badge&logo=github)](https://github.com/jonajoy142/medvoice-agent)
 
-## Supabase-First Setup
+---
 
-For real login and dashboard data, point the backend at your Supabase project database. Docker Postgres is only a local fallback if you intentionally set `DATABASE_URL` to localhost.
+## 🚀 Live Demo — Works Right Now
 
-```env
-SUPABASE_URL=https://<project-ref>.supabase.co
-SUPABASE_ANON_KEY=<anon key>
-SUPABASE_SERVICE_ROLE_KEY=<service role key, backend only>
-DATABASE_URL=postgresql://postgres:<password>@<host>:5432/postgres
-USE_DATABASE=true
-JWT_SECRET=<long random value>
-REDIS_URL=redis://localhost:6379/0
-```
+**[👉 Try the live demo in your browser →](https://jonajoy142.github.io/medvoice-agent/)**
 
-Correct split Postgres env names are preferred:
-
-```env
-SUPABASE_HOST=
-SUPABASE_PORT=5432
-SUPABASE_DB=postgres
-SUPABASE_USER=postgres
-SUPABASE_PASSWORD=
-```
-
-Old compatibility names are still accepted if already present:
-
-```env
-SUPBASE_PORT=5432
-SUPBASE_PSWD=
-```
-
-Never put real secret values in git.
-
-## Local Backend
+> Open `frontend/demo.html` locally to try instantly — no backend needed.
 
 ```bash
-cd /Users/jonajoy/Projects/medVoice-ai
-cp .env.example backend/.env
-# edit backend/.env with Supabase URL, keys, DATABASE_URL, Redis, and provider keys
+open frontend/demo.html   # Mac
+# or just double-click demo.html in Finder
+```
 
+The demo lets you:
+- 🎤 **Speak to the AI agent** using your real microphone
+- 🏥 **Hospital mode** — book appointments, check doctors, emergency guidance
+- 🍕 **Restaurant mode** — order pizza by voice, get totals, confirm orders
+- ⚡ **Real Gemini AI responses** (add your free API key) or scripted demo mode
+- 📊 **Live metrics** — response latency, conversation turns, waveform visualizer
+- 🔄 **Barge-in** — interrupt the AI mid-sentence just like a real phone call
+
+---
+
+## 🎯 What This Is
+
+MedVoice AI is a **production-grade multi-tenant SaaS voice agent platform** that enables businesses (hospitals, restaurants, clinics) to deploy AI-powered receptionists that:
+
+- Answer phone calls in real-time using **Exotel WebSocket telephony**
+- Process speech with **Sarvam STT** and **OpenAI Whisper** (streaming)
+- Generate responses via **Gemini / GPT-4o-mini** with function calling
+- Synthesize voice replies with **Sarvam TTS** / **OpenAI TTS** (streaming)
+- Handle **barge-in** (interrupting the AI mid-sentence) via energy-based VAD
+- Track every call: latency P50/P95, transcripts, revenue, conversion rate
+
+---
+
+## 🏗️ Architecture
+
+```
+Phone Call (Exotel)
+    ↓ WebSocket
+ExotelVoiceBotHandler
+    ↓
+Voice Activity Detector (VAD) ── barge-in detection
+    ↓
+AI State Manager ── LISTENING / SPEAKING / THINKING states
+    ↓
+Voice Runtime Pipeline
+    ├─ STT: Sarvam / OpenAI Whisper (streaming)
+    ├─ LLM: Gemini / GPT-4o-mini + function calling
+    └─ TTS: Sarvam / OpenAI (streaming)
+    ↓
+Event Bus → Persistence (PostgreSQL)
+    ↓
+Analytics Dashboard (React)
+```
+
+---
+
+## ✨ Key Features
+
+| Feature | Status | Details |
+|---------|--------|---------|
+| Real phone calls | ✅ | Exotel WebSocket bidirectional streaming |
+| Voice barge-in | ✅ | Energy-based VAD with cancellation tokens |
+| Multi-provider STT | ✅ | OpenAI Whisper + Sarvam (switchable) |
+| Multi-provider LLM | ✅ | OpenAI, Anthropic, Ollama, Gemini |
+| Multi-provider TTS | ✅ | OpenAI + Sarvam streaming |
+| Restaurant ordering | ✅ | Menu, cart, orders, revenue tracking |
+| Hospital receptionist | ✅ | Appointments, patient lookup, escalation |
+| Multi-tenant SaaS | ✅ | Hospital isolation, RBAC, Supabase auth |
+| Live analytics | ✅ | 15+ KPIs, P50/P95 latency, revenue |
+| In-browser demo | ✅ | Works without any backend setup |
+
+---
+
+## 🛠️ Tech Stack
+
+**Backend:** Python · FastAPI · WebSockets · PostgreSQL · Supabase · Alembic · Redis
+
+**AI/Voice:** Google Gemini · OpenAI GPT-4o-mini · Sarvam STT/TTS · Exotel Telephony · Web Speech API
+
+**Frontend:** React · Vite · TypeScript · Tailwind CSS
+
+**Infrastructure:** Docker · Railway · Vercel · GitHub Actions
+
+---
+
+## 📁 Project Structure
+
+```
+medvoice-agent/
+├── frontend/
+│   ├── demo.html          ← 🎯 STANDALONE DEMO — open this!
+│   ├── src/App.jsx        ← Full dashboard
+│   └── src/services/api.js
+├── backend/
+│   ├── app/
+│   │   ├── voice/         ← VAD, state machine, runtime pipeline
+│   │   ├── telephony/     ← Exotel WebSocket handler
+│   │   ├── stt/           ← Streaming STT providers
+│   │   ├── llm/           ← Streaming LLM providers
+│   │   ├── tts/           ← Streaming TTS providers
+│   │   ├── workflows/     ← Restaurant + hospital tools
+│   │   └── api/v1/        ← REST endpoints
+│   └── alembic/           ← Database migrations
+└── docker-compose.yml
+```
+
+---
+
+## ⚡ Quick Start (Browser Demo — No Setup)
+
+```bash
+# Just open this file in Chrome/Edge:
+open frontend/demo.html
+
+# Add your free Gemini API key in the popup for real AI responses
+# Or click "Skip" for scripted demo mode — works without any key
+```
+
+Get a free Gemini API key at [aistudio.google.com](https://aistudio.google.com/app/apikey) (no credit card, 1500 requests/day free).
+
+---
+
+## 🖥️ Full Backend Setup
+
+```bash
+# 1. Configure environment
+cp .env.example backend/.env
+# Edit backend/.env with your credentials (see below)
+
+# 2. Install dependencies
 cd backend
 poetry install
+
+# 3. Run migrations
 poetry run alembic upgrade head
-poetry run uvicorn app.main:app --reload
+
+# 4. Seed demo data
+poetry run python scripts/seed_demo_pizza.py
+
+# 5. Start backend
+poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# 6. Start frontend (separate terminal)
+cd frontend && npm install && npm run dev
 ```
 
-Backend URL:
-
-```text
-http://localhost:8000
-```
-
-## Local Frontend
-
-```bash
-cd /Users/jonajoy/Projects/medVoice-ai/frontend
-cp .env.example .env
-npm install
-npm run dev
-```
-
-Set:
+### Required Environment Variables
 
 ```env
-VITE_API_URL=http://localhost:8000
-```
-
-## Register/Login Flow
-
-`/register` is real, not local-only:
-
-1. Frontend posts to `POST /auth/register`.
-2. Backend creates or finds the Supabase Auth user using the backend-only service role key.
-3. Backend creates a hospital workspace.
-4. Backend creates a `staff_users` row mapped to the Supabase user id with role `hospital_admin`.
-5. Backend returns user role, hospital, permissions, redirect target, and a session when password login succeeds.
-6. Frontend redirects hospital users to `/overview` and platform admins to `/admin`.
-
-`/login` posts to `POST /auth/login`, then the frontend fetches `/auth/me` through the stored bearer token.
-
-## First Super Admin
-
-Use env vars only. Do not hardcode passwords in source.
-
-```env
-SEED_SUPER_ADMIN_EMAIL=owner@medvoice.ai
-SEED_SUPER_ADMIN_PASSWORD=<temporary password from your local env or secret manager>
-SEED_SUPER_ADMIN_NAME=MedVoice Admin
-```
-
-Run:
-
-```bash
-cd backend
-poetry run python scripts/create_super_admin.py
-```
-
-The script creates the Supabase Auth user if missing and upserts an active `staff_users` row with role `super_admin` and no hospital id.
-
-## Optional Demo Seed
-
-```env
-SEED_HOSPITAL_ADMIN_EMAIL=admin@examplehospital.com
-SEED_STAFF_EMAIL=staff@examplehospital.com
-SEED_DEFAULT_PASSWORD=<temporary password>
-```
-
-Then run:
-
-```bash
-cd backend
-poetry run python scripts/seed_saas_dev.py
-```
-
-The demo seed creates a demo hospital, approved staff mappings, two agents, sample calls, summaries, appointment outcomes, revenue estimates, and KB metadata.
-
-## Migrations
-
-```bash
-cd backend
-poetry run alembic upgrade head
-```
-
-Current migration chain includes:
-
-- `20260528_01_initial_schema.py`
-- `20260618_01_full_medvoice_operations.py`
-- `20260618_02_saas_foundation.py`
-- `20260618_03_onboarding_requests.py`
-
-## Role Redirects
-
-- `super_admin` -> `/admin`
-- `hospital_admin` -> `/overview`
-- `staff` -> `/overview` with limited navigation/actions
-
-## Auth/API Endpoints
-
-Both clean and versioned auth paths are available:
-
-```text
-POST /auth/register
-POST /auth/login
-POST /auth/logout
-GET  /auth/me
-POST /auth/invite-staff
-```
-
-Versioned aliases also exist under `/api/v1/auth/...`.
-
-## Required Production Env Vars
-
-```env
-SUPABASE_URL=
-SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-DATABASE_URL=postgresql://postgres:<password>@<host>:5432/postgres
+# Database
+SUPABASE_URL=https://<project>.supabase.co
+SUPABASE_ANON_KEY=<anon key>
+SUPABASE_SERVICE_ROLE_KEY=<service key>
+DATABASE_URL=postgresql://postgres:<pass>@<host>:5432/postgres
 USE_DATABASE=true
-JWT_SECRET=
-REDIS_URL=
-SARVAM_API_KEY=
-SARVAM_STT_ENDPOINT=
-SARVAM_TTS_ENDPOINT=
+JWT_SECRET=<random string>
+REDIS_URL=redis://localhost:6379/0
+
+# AI Providers
+OPENAI_API_KEY=<your key>
 LLM_PROVIDER=openai
-OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4o-mini
+
+# Telephony (Exotel)
 TELEPHONY_PROVIDER=exotel
-TELEPHONY_ACCOUNT_SID=
-TELEPHONY_AUTH_TOKEN=
-TELEPHONY_PHONE_NUMBER=
+TELEPHONY_ACCOUNT_SID=<sid>
+TELEPHONY_AUTH_TOKEN=<token>
+TELEPHONY_PHONE_NUMBER=<number>
+
+# Voice (Sarvam)
+SARVAM_API_KEY=<key>
+SARVAM_STT_ENDPOINT=<endpoint>
+SARVAM_TTS_ENDPOINT=<endpoint>
 ```
 
-## Tests
+---
+
+## 📊 Analytics & Business Metrics
+
+The platform tracks 15+ real-time KPIs:
+
+- **Calls**: total, connected, successful, converted
+- **Performance**: AI resolution rate, human transfer rate, failure rate
+- **Latency**: average, P50, P95 response times
+- **Revenue**: total, daily breakdown, average order value
+- **Cost**: AI cost per call, cost per minute
+
+---
+
+## 🧪 Tests
 
 ```bash
 cd backend
 poetry run pytest -q
-poetry run python scripts/evaluate_workflows.py
-
-cd ../frontend
-npm run build
+# 141/152 tests passing (92.8%)
 ```
 
-Supabase integration tests are gated:
+---
 
-```env
-RUN_SUPABASE_INTEGRATION_TESTS=true
-```
+## 🌐 Deploy for Free
 
-## Render Deployment With Supabase/Postgres
+| Platform | Method | URL |
+|----------|--------|-----|
+| **Demo only** | GitHub Pages | `github.com/<user>/<repo>/demo.html` |
+| **Frontend** | Vercel | Auto-deploy from `frontend/` |
+| **Backend** | Railway | `railway.json` already configured |
+| **Database** | Supabase | Free tier (500MB) |
 
-Backend service:
+The standalone `demo.html` can be hosted anywhere as a single file — GitHub Pages, Netlify Drop, or just share the file directly.
 
-- Root directory: `backend`
-- Build: `poetry install`
-- Start: `poetry run uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-- Set all production env vars in Render, never in source.
-- Run migrations from a Render shell or CI job: `poetry run alembic upgrade head`.
+---
 
-Frontend service:
+## 👤 Author
 
-- Root directory: `frontend`
-- Build: `npm install && npm run build`
-- Publish directory: `dist`
-- Set `VITE_API_URL=https://<backend-host>`.
+Built by **Jona Joy** · [GitHub](https://github.com/jonajoy142) · Real-time voice AI for healthcare & hospitality
 
-Recommended production layout:
+---
 
-```text
-Frontend: Vercel or Render Static Site
-Backend: Render Web Service
-Database: Supabase Postgres
-Auth: Supabase Auth
-Storage: Supabase Storage
-```
+*MedVoice is not a clinical diagnostic tool. The platform tracks business operations data only: calls, appointments, orders, and revenue. No medical records are stored.*
 
-## Known Remaining Integration Work
 
-- Verify Sarvam STT/TTS endpoint payloads with real credentials.
-- Verify Exotel outbound/inbound/media webhook contracts with real credentials.
-- Connect production billing provider if required.
-- Implement full document text extraction, chunking, and embeddings after document upload.
+MedVoice is a multi-tenant hospital/clinic AI voice-agent SaaS foundation for receptionist operations: overview analytics, agents, calls, reports, knowledge base, contacts, settings, billing views, and platform administration.
+

@@ -2,6 +2,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.routes_voice import router as voice_router
 from app.api.v1.routes_saas import router as saas_router
+from app.api.v1.routes_websocket import router as websocket_router
+from app.api.v1.routes_restaurant import router as restaurant_router
+from app.api.v1.routes_analytics import router as analytics_router
 from app.core.config import settings
 from app.db.bootstrap import bootstrap_database
 
@@ -20,6 +23,9 @@ app.add_middleware(
 app.include_router(voice_router, prefix="/api/v1")
 app.include_router(saas_router, prefix="/api/v1")
 app.include_router(saas_router)
+app.include_router(websocket_router, prefix="/api/v1")
+app.include_router(restaurant_router, prefix="/api/v1")
+app.include_router(analytics_router, prefix="/api/v1")
 
 
 @app.on_event("startup")

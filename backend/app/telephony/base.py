@@ -12,6 +12,19 @@ class OutboundCallRequest:
 
 
 @dataclass(frozen=True)
+class VoiceBotStreamRequest:
+    """Request to start a bidirectional VoiceBot stream."""
+    to_number: str
+    websocket_url: str
+    caller_id: str | None = None
+    record: bool = False
+    time_limit: int | None = None
+    custom_parameters: dict[str, str] | None = None
+    status_callback_url: str | None = None
+    stream_name: str | None = None
+
+
+@dataclass(frozen=True)
 class TelephonyCallResult:
     provider: str
     provider_call_id: str
@@ -23,6 +36,9 @@ class TelephonyProvider(Protocol):
     name: str
 
     def start_outbound_call(self, request: OutboundCallRequest) -> TelephonyCallResult:
+        ...
+
+    def start_voicebot_stream(self, request: VoiceBotStreamRequest) -> TelephonyCallResult:
         ...
 
     def parse_status_webhook(self, payload: dict[str, Any]) -> dict[str, Any]:

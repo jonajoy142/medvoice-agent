@@ -6,7 +6,7 @@ from typing import Any
 import requests
 
 from app.core.config import settings
-from app.telephony.base import OutboundCallRequest, TelephonyCallResult, TelephonyProvider
+from app.telephony.base import OutboundCallRequest, TelephonyCallResult, TelephonyProvider, VoiceBotStreamRequest
 
 
 @dataclass
@@ -38,6 +38,54 @@ class ExotelTelephonyProvider(TelephonyProvider):
         data = response.json()
         call = data.get("Call") if isinstance(data, dict) else None
         call_data = call if isinstance(call, dict) else data
+        return TelephonyCallResult(
+            provider=self.name,
+            provider_call_id=str(call_data.get("Sid") or call_data.get("sid") or ""),
+            status=str(call_data.get("Status") or call_data.get("status") or "queued"),
+            raw=call_data,
+        )
+
+    def start_voicebot_stream(self, request: VoiceBotStreamRequest) -> TelephonyCallResult:
+        """Start a bidirectional VoiceBot stream using Exotel's Legs API."""
+        self._require_config()
+        url = f"{settings.telephony_base_url.rstrip('/')}/{settings.telephony_account_sid}/Calls/connect.json"
+        
+        # Build form data for VoiceBot stream
+        data = {
+            "From": request.to_number,
+            "CallerId": request.caller_id or settings.telephony_phone_number,
+            "streamurl": request.websocket_url,
+            "streamtype": "bidirectional",
+        }
+        
+        # Optional parameters
+        if request.record:
+            data["record"] = "true"
+        if request.time_limit:
+            data["timelimit"] = str(request.time_limit)
+        if request.custom_parameters:
+            # Add custom parameters as key=value pairs
+            for key, value in request.custom_parameters.items():
+                data[f"customfield[{key}]"] = value
+        if request.status_callback_url:
+            data["statuscallback"] = request.status_callback_url
+            data["statuscallbackevents[]"] = "terminal"
+        if request.stream_name:
+            data["streamname"] = request.stream_name
+        
+        response = requests.post(
+            url,
+            auth=(settings.telephony_account_sid, settings.telephony_auth_token),
+            data=data,
+            timeout=12,
+        )
+        response.raise_for_status()
+        response_data = response.json()
+        
+        # Extract call information
+        call = response_data.get("Call") if isinstance(response_data, dict) else None
+        call_data = call if isinstance(call, dict) else response_data
+        
         return TelephonyCallResult(
             provider=self.name,
             provider_call_id=str(call_data.get("Sid") or call_data.get("sid") or ""),

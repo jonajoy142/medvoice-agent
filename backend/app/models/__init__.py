@@ -3,6 +3,7 @@ from app.models.audit_log import AuditLog
 from app.models.conversation_session import ConversationSession
 from app.models.doctor import Doctor
 from app.models.patient import Patient
+from app.models.restaurant import OrderStatus
 
 __all__ = [
     "Appointment",
@@ -10,4 +11,5 @@ __all__ = [
     "ConversationSession",
     "Doctor",
     "Patient",
+    "OrderStatus",
 ]
