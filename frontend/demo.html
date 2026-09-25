@@ -916,10 +916,11 @@ const savedBackend = localStorage.getItem('mv_backend_url') || '';
 const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 const isCloudflare = window.location.hostname.endsWith('.workers.dev') || window.location.hostname.endsWith('.pages.dev');
 
-// If local dev server -> port 3333; if hosted on Cloudflare -> same-origin; if hosted on Vercel -> use configured backend
+// If local dev server -> port 3333; if hosted on Cloudflare -> same-origin; if hosted on Vercel -> use Cloudflare Worker backend
+const DEFAULT_CF_BACKEND = 'https://medvoice-agent.jonajoy142.workers.dev';
 const SERVER = isLocal
   ? (window.location.port === '3333' ? '' : 'http://localhost:3333')
-  : (isCloudflare ? '' : (savedBackend || ''));
+  : (isCloudflare ? '' : (savedBackend || DEFAULT_CF_BACKEND));
 let serverOnline = false;
 
 let mode = 'hospital';
